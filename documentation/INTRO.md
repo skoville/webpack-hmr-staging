@@ -47,7 +47,7 @@ __In the long-run the project will aim to:__
 - Perfection is just as important as Done when is comes to creating critical infrastructure platforms. "Done is better than Perfect" is for start-ups building consumer apps.
 - Superior design > backwards-compatability. Force users to change their integration code to enjoy the features in new major releases for their own sake.
 - Fair allocation of resouces. If eventually the project is funded by [Patreon](https://patreon.com) or [OpenCollective](https://opencollective.com), then resources should be spent on getting as many high-quality developers as possible, and they should be paid based on the value of their contribution to the project. It should be noted though that the goal of this project is not to make a profit, but to provide [Free](https://www.gnu.org/philosophy/free-sw.en.html) and Open Source Software. Profit-making is for businesses who use this software.
-- Value community input without compromising the no overcoping principle. Come up with a system to vote on features and to delegate them to other projects or repos and their authors/maintainers.
+- Value community input without compromising the no overscoping principle. Come up with a system to vote on features and to delegate them to other projects or repos and their authors/maintainers.
 
 # Project's Current Status
 
