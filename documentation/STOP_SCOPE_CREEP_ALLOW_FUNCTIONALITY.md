@@ -88,7 +88,7 @@ module.exports = {
 
 This feature could be easily offloaded to the developer consuming the library, and they could accomplish this same task in roughly the same number of lines of code as is in this configuration.
 
-# 4. Generally Extensible Web Server
+### 4. Generally Extensible Web Server
 
 It is still acknowledged by the webpack dev server authors that the above feature set may not cover all of the customization preferences, so they allow direct manipulation of the Express app that is created internally.
 
@@ -110,7 +110,7 @@ module.exports = {
 };
 ```
 
-# 5. Random other unnecessary scope-creep.
+### 5. Random other unnecessary scope-creep.
 
 For some reason the maintainers decided to add in [bonjour](https://en.wikipedia.org/wiki/Bonjour_(software)) broadcasting into the core library. This seems like a pretty niche feature that has no business polluting the core logic.
 
@@ -119,6 +119,7 @@ For some reason the maintainers decided to add in [bonjour](https://en.wikipedia
 In the spirit of maintaining a limited, minimal scope, here is how these same exact features might be implemented in tandem with the WebpackDevSecOpsServer's limited scope.
 
 ```TypeScript
+/* WIP */
 import http from 'http';
 import express from 'express';
 import httpProxy from 'http-proxy'; // This npm module already provides proxy support, so use that!
