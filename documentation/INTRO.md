@@ -8,7 +8,7 @@ I have often tried starting full-stack TypeScript projects (React + TypeScript o
 - The code for WebpackDevServer is not very well documented and the code has monolithic structures making it difficult to maintain
 - [Sometimes](https://github.com/webpack/webpack-dev-server/issues/1503) all of a webpack bundle's code is recompiled when only one file changes.
 
-I desire a robust, production-ready system for rapidly developing, testing, and deploying my full-stack TypeScript projects, but webpack-dev-server does not provide the functionality I need, and based on the state of maintainability of its source, it is not worth my time to try and extend it. I'm tired of spending hours on haphazard configs and waiting for full-project recompiles, entire test-suite re-runs, full code redeploys, and full system restarts when I could be using webpacks core's HMR feature to its full potential.
+I desire a robust, production-ready system for rapidly developing, testing, and deploying my full-stack, isomorphic TypeScript projects, but webpack-dev-server does not provide the functionality I need, and based on the state of maintainability of its source, it is not worth my time to try and extend it. I'm tired of spending hours on haphazard configs and waiting for full-project recompiles, entire test-suite re-runs, full code redeploys, and full system restarts when I could be using webpacks core's HMR feature to its full potential.
 
 # Solution
 
