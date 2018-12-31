@@ -8,7 +8,7 @@ I have often tried starting full-stack TypeScript projects (React + TypeScript o
 - The code for WebpackDevServer is not very well documented and the code has monolithic structures making it difficult to maintain
 - [Sometimes](https://github.com/webpack/webpack-dev-server/issues/1503) all of a webpack bundle's code is recompiled when only one file changes.
 
-I desire a robust system for rapidly developing and testing my full-stack TypeScript projects, but webpack-dev-server does not provide the functionality I need, and based on the state of maintainability of its source, it is not worth my time to try and extend it. I'm tired of spending hours on haphazard configs and waiting for full project recompiles, full test-suite runs, full code redeploys, and full system restarts when I could be using webpacks core's HMR feature to its full potential.
+I desire a robust, production-ready system for rapidly developing, testing, and deploying my full-stack TypeScript projects, but webpack-dev-server does not provide the functionality I need, and based on the state of maintainability of its source, it is not worth my time to try and extend it. I'm tired of spending hours on haphazard configs and waiting for full-project recompiles, entire test-suite re-runs, full code redeploys, and full system restarts when I could be using webpacks core's HMR feature to its full potential.
 
 # Solution
 
@@ -39,18 +39,19 @@ __In the long-run the project will aim to:__
 
 - No overscoping. Have a defined, minimal scope for repositories and let other functionality be implemented by third-party plugins.
 - Document EVERYTHING.
-    - All systems should have highly detailed documentation full of descriptive diagrams and this should be complete as part of the MVP.
+    - All systems should have highly detailed documentation full of descriptive diagrams and this should be complete as part of the 1.0 release.
     - Every line of code should be justified and explained by near-by documentation.
     - Conform to the [TSDoc Standard](https://github.com/Microsoft/tsdoc) for documentating methods and classes.
     - Write everything in TypeScript and don't use the `any` type so all data structure types of plugin infrastructure APIs and internal modules can be easily documented and understood.
     - Anyone who reads all the documentation should be able to start productively contributing to the core repo(s) immediately without needing any further explanation.
 - Perfection is just as important as Done when is comes to creating critical infrastructure platforms. "Done is better than Perfect" is for start-ups building consumer apps.
+- Superior design > backwards-compatability. Force users to change their integration code to enjoy the features in new major releases for their own sake.
 - Fair allocation of resouces. If eventually the project is funded by [Patreon](https://patreon.com) or [OpenCollective](https://opencollective.com), then resources should be spent on getting as many high-quality developers as possible, and they should be paid based on the value of their contribution to the project. It should be noted though that the goal of this project is not to make a profit, but to provide [Free](https://www.gnu.org/philosophy/free-sw.en.html) and Open Source Software. Profit-making is for businesses who use this software.
 - Value community input without compromising the no overcoping principle. Come up with a system to vote on features and to delegate them to other projects or repos and their authors/maintainers.
 
 # Project's Current Status
 
-Basically the project has just begun. I know now what I want to build, but I'm not sure how to build it or specifically how everything could be best-architected. Immediately I need help understanding webpack fully, and all the data passed to hooks and when the hooks are invoked and under what circumstances. Once this is known then we can properly design the project architecture. Until then, I am considering reverse-engineering [webpack-dev-server](https://github.com/webpack/webpack-dev-server) and [webpack-dev-middleware](https://github.com/webpack/webpack-dev-middleware) to implement the Alpha MVP (v0) functionality then rewriting the entire project according to a formalized spec for the [first stable release](https://semver.org/) (v1).
+Basically the project has just begun. After spending much of 2018 thinking about these problems and how I want to solve them, I know now what I want to build, but I'm not sure how to build it or specifically how everything could be best-architected. Immediately I need help understanding webpack fully, and all the data passed to hooks and when the hooks are invoked and under what circumstances. Once this is known then we can properly design the project architecture. Until then, I am considering reverse-engineering [webpack-dev-server](https://github.com/webpack/webpack-dev-server) and [webpack-dev-middleware](https://github.com/webpack/webpack-dev-middleware) to implement the Alpha MVP (v0) functionality then rewriting the entire project according to a formalized spec for the [first stable release](https://semver.org/) (v1).
 
 I'm in the process of starting some documentation on webpack (webpack's own documentation doesn't give enough detail to be sufficient for this project), the content for which is being learned by myself as I sandbox around with webpack.
 
