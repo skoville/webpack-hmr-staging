@@ -29,6 +29,7 @@ __In the long-run the project will aim to:__
 - Eventually support [Deno](https://github.com/denoland/deno) in some way once it has stabalized.
 - Add interactive debugging built-in to the dashboard. Debug souce-code alongside generated JS (eventually WASM).
 - Build out an extensible build-pipeline (extended via plugins) so that once hot modules are compiled and tested, they can be hot swapped into live production systems. CI/CD (D for deployment) for individual modules.
+- Add in optional light-weight execution tracer into production bundles so that entire end-user interactions can be recreated as if it was a debugging session.
 - Curate a list of preferred plugins to use with this tool for best outcomes in
     - Compiling code
     - Testing code
