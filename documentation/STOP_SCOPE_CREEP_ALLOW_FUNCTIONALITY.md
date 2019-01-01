@@ -36,7 +36,10 @@ module.exports = {
         pfxPassphrase: 'passphrase',
         allowedHosts: ['host.com', 'subdomain.host.com', 'subdomain2.host.com', 'host2.com'],
         disableHostCheck: false,
-        headers: {'X-Custom-Foo': 'bar'},
+        headers: {
+            'X-Custom-Foo': 'bar',
+            'X-Custom-Hello': 'world'
+        },
         host: '0.0.0.0',
         ...
     },
@@ -97,11 +100,13 @@ module.exports = {
     ...
     devServer: {
         ...
-        after: function(app, server) { ... },
-        before: function(app, server) {
+        after: function(app, server) {
             app.get('/some/path', function(req, res) {
                 res.json({ custom: 'response' });
             });
+        },
+        before: function(app, server) {
+            ...
         },
         port: 8080,
         ...
@@ -116,27 +121,82 @@ For some reason the maintainers decided to add in [bonjour](https://en.wikipedia
 
 ### Solution
 
-In the spirit of maintaining a limited, minimal scope, here is how these same exact features might be implemented in tandem with the WebpackDevSecOpsServer's limited scope.
+In the spirit of maintaining a limited, minimal scope, here is how these same exact features might be implemented in tandem with a theoretical WebpackDevSecOpsServer API having a limited scope.
 
 ```TypeScript
-/* WIP */
-import http from 'http';
+import https from 'https';
 import express from 'express';
-import httpProxy from 'http-proxy'; // This npm module already provides proxy support, so use that!
+import httpProxy from 'http-proxy';
 import webpack from 'webpack';
-import {config, BUNDLE_NAMES} from './webpack.config'; // BUNDLE_NAMES is some sort of runtime enum.
+// BUNDLE_NAMES is a TypeScript string Enum
+import {config, BUNDLE_NAMES} from './webpack.config';
 import {WebpackDevSecOpsServer} from 'webpack-dev-sec-ops-server';
+
 const compiler = webpack(config);
 const devSecOps = new WebpackDevSecOpsServer(compiler);
 const app = express();
-// Proxy
+// Proxy certain requests
 const apiProxy = httpProxy.createProxyServer();
 app.get("/api/*", function(req, res) {
-    apiProxy.web(req, res, {target: "http://localhost:3000"})
+    apiProxy.web(req, res, {target: "http://localhost:3000"});
 });
-// Serve Static Files
-// Reload when static files change
-// Serve bundles
+app.all("*", (req, res, next) => {
+    // Filter out unknown hosts
+    const allowedHosts = ['host.com', 'subdomain.host.com', 'subdomain2.host.com', 'host2.com'];
+    if (allowedHosts.indexOf(req.hostname) === -1) {
+        res.send('Invalid Host header');
+    } else {
+        // Send specific headers
+        ({
+            'X-Custom-Foo': 'bar',
+            'X-Custom-Hello': 'world'
+        }).forEach((headerVal, headerKey) => 
+            res.setHeader(headerKey, headersVal)
+        );
+        next();
+    }
+});
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'assets')));
+// Serve bundles (which are in-memory and not written to disk)
+app.param('bundle_name', function(req, res, next, bundle_name) {
+    if(Object.keys(BUNDLE_NAMES).indexOf(bundle_name) !== -1) {
+        devSecOps.getBundleStream(BUNDLE_NAMES[bundle_name]).pipe(res);
+    } else {
+        next();
+    }
+});
+app.get('/bundle/:bundle_name', function(req, res, next) {
+    next();
+});
+// Reload client when static files change
+
+// Other general extensions
+app.get('/some/path', function(req, res) {
+    res.json({ custom: 'response' });
+});
+// Rewrite URLs
+app.get("*", function(req, res) {
+    if(req.path === "/")
+        fs.createReadStream(path.join(__dirname, "views", "landing.html")).pipe(res);
+    else if(req.path.startsWith("/subpage"))
+        fs.createReadStream(path.join(__dirname, "views", "subpage.html")).pipe(res);
+    else 
+        fs.createReadStream(path.join(__dirname, "views", "404.html")).pipe(res);
+});
+// Customize host & port + https
+https.createServer({
+    ca:
+    cert:
+    key: 
+}, app).listen(8080, function() {
+    console.log("listening on port 8080")
+})
+// pfx
+
+
+// Bonjour broadcast
 ```
 
 Because they are implemented outside of the core library, the solutions are more customizable, and also the core library is more maintainable since there are less features to implement. More maintainable = quicker iterations = more releases = better library.
