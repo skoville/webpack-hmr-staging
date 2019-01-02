@@ -125,16 +125,25 @@ In the spirit of maintaining a limited, minimal scope, here is how these same ex
 
 ```TypeScript
 import https from 'https';
+import url from 'url';
+
+import ws from 'ws';
 import express from 'express';
 import httpProxy from 'http-proxy';
 import webpack from 'webpack';
-// BUNDLE_NAMES is a TypeScript string Enum
-import {config, BUNDLE_NAMES} from './webpack.config';
+import bonjour from 'bonjour';
+import chokidar from 'chokidar';
 import {WebpackDevSecOpsServer} from 'webpack-dev-sec-ops-server';
 
-const compiler = webpack(config);
-const devSecOps = new WebpackDevSecOpsServer(compiler);
+// BUNDLE_NAMES is a TypeScript string Enum
+import {config, BUNDLE_NAMES} from './webpack.config';
+
+const wss = new ws.Server({noServer: true});
 const app = express();
+
+const compiler = webpack(config);
+const devSecOps = new WebpackDevSecOpsServer(compiler, wss);
+
 // Proxy certain requests
 const apiProxy = httpProxy.createProxyServer();
 app.get("/api/*", function(req, res) {
@@ -160,9 +169,10 @@ app.all("*", (req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'assets')));
 // Serve bundles (which are in-memory and not written to disk)
-app.param('bundle_name', function(req, res, next, bundle_name) {
-    if(Object.keys(BUNDLE_NAMES).indexOf(bundle_name) !== -1) {
-        devSecOps.getBundleStream(BUNDLE_NAMES[bundle_name]).pipe(res);
+app.param('bundle_name', function(req, res, next, bundleName) {
+    if(Object.values(BUNDLE_NAMES).indexOf(bundleName) !== -1) {
+        res.setHeader('Content-Type', 'application/javascript');
+        devSecOps.getBundle(bundleName).createReadStream().pipe(res);
     } else {
         next();
     }
@@ -171,32 +181,77 @@ app.get('/bundle/:bundle_name', function(req, res, next) {
     next();
 });
 // Reload client when static files change
-
+const watcher = chokidar.watch(watchPath, options);
+watcher.on('change', () => {
+    devSecOps.getBundle(BUNDLE_NAMES.WEB_CLIENT).
+});
 // Other general extensions
 app.get('/some/path', function(req, res) {
     res.json({ custom: 'response' });
 });
 // Rewrite URLs
 app.get("*", function(req, res) {
-    if(req.path === "/")
+    res.setHeader('Content-Type', 'application/javascript');
+    const pathname = url.parse(req.url).pathname;
+    if(pathname === "/")
         fs.createReadStream(path.join(__dirname, "views", "landing.html")).pipe(res);
-    else if(req.path.startsWith("/subpage"))
+    else if(pathname.startsWith("/subpage"))
         fs.createReadStream(path.join(__dirname, "views", "subpage.html")).pipe(res);
     else 
         fs.createReadStream(path.join(__dirname, "views", "404.html")).pipe(res);
 });
 // Customize host & port + https
-https.createServer({
-    ca:
-    cert:
-    key: 
-}, app).listen(8080, function() {
-    console.log("listening on port 8080")
-})
-// pfx
-
-
-// Bonjour broadcast
+const port = 8080;
+const host = '0.0.0.0';
+const server = https.createServer({
+    // Traditional cert
+    key: fs.readFileSync('/path/to/server.key'),
+    cert: fs.readFileSync('/path/to/server.crt'),
+    ca: fs.readFileSync('/path/to/ca.pem')
+    // Or pfx
+    pfx: '/path/to/file.pfx',
+    passphrase: 'passphrase'
+}, app);
+server.on('upgrade', function(req, socket, head) {
+    wss.handleUpgrade(req, socket, head, function done(webSocket) {
+        wss.emit('connection', webSocket, req);
+    });
+});
+server.listen({
+    port,
+    host
+}, function() {
+    console.log(`listening on port ${port}, bound to ${host}`);
+});
+// Bonjour broadcast (Not sure if this is right)
+const bonjourInstance = bonjour();
+bonjourInstance.publish({
+    name: 'Webpack Dev Sec Ops Server',
+    host,
+    port,
+    type: 'http',
+    subtypes: [ 'webpack' ]
+});
+process.on('exit', () => {
+    bonjourInstance.unpublishAll(() => {
+        bonjourInstance.destroy();
+    });
+});
 ```
 
-Because they are implemented outside of the core library, the solutions are more customizable, and also the core library is more maintainable since there are less features to implement. More maintainable = quicker iterations = more releases = better library.
+This approach clearly is far more verbose than a few options in a config object, however
+
+1. Now users have more control over exactly how the devServer should serve its content. Perhaps they want a slightly different setup which would require them to tweak the above code slightly, which would not be possible when all of the implementation is implemented internally as is the case with Webpack Dev Server.
+1. Most of the time users will not need all of these features out of the box, so they will not need to write all of the above boilerplate code, only a subset of it, modified slightly to suit their needs.
+
+In addition, now that all of these features are cut from the core library, the core library is more maintainable since there are less features to implement and keep up-to-date. More maintainable = quicker iterations = more releases = better library.
+
+Now all we need to worry about are literally three methods (as opposed to the additional 15 configuration features that had to be implemented):
+
+1. constructor: `const devSecOps = new WebpackDevSecOpsServer(compiler, wss)`
+1. serving bundles: `devSecOps.getBundle(bundleName).createReadStream().pipe(res);`
+1. forcing client reloads: ``
+
+After removing all the implementations associated with the 15 configuration features that seem more like scope-creep than necessities, I was able to get a working version of WebpackDevServer that had __% less code than before!
+
+There would likely be more methods than the three listed, but the point is that by removing features from the webpack dev server which are orthogonal to its core purpose, we are left with more bandwidth to implement more core features which are more applicable to what the dev server offers, for example by allowing a rich plugin system for extending or tapping into certain steps in the dev server processes, or extending the dev server to become a DevOps server, which is the goal of this project.
