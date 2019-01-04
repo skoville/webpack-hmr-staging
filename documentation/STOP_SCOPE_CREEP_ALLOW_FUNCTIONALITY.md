@@ -183,7 +183,7 @@ app.get('/bundle/:bundle_name', function(req, res, next) {
 // Reload client when static files change
 const watcher = chokidar.watch(watchPath, options);
 watcher.on('change', () => {
-    devSecOps.getBundle(BUNDLE_NAMES.WEB_CLIENT).
+    devSecOps.getBundle(BUNDLE_NAMES.WEB_CLIENT).forceClientReload();
 });
 // Other general extensions
 app.get('/some/path', function(req, res) {
@@ -248,10 +248,10 @@ In addition, now that all of these features are cut from the core library, the c
 
 Now all we need to worry about are literally three methods (as opposed to the additional 15 configuration features that had to be implemented):
 
-1. constructor: `const devSecOps = new WebpackDevSecOpsServer(compiler, wss)`
+1. constructor: `const devSecOps = new WebpackDevSecOpsServer(compiler, wss);`
 1. serving bundles: `devSecOps.getBundle(bundleName).createReadStream().pipe(res);`
-1. forcing client reloads: ``
+1. forcing client reloads: `devSecOps.getBundle(BUNDLE_NAMES.WEB_CLIENT).forceClientReload();`
 
-After removing all the implementations associated with the 15 configuration features that seem more like scope-creep than necessities, I was able to get a working version of WebpackDevServer that had __% less code than before!
+After removing all the implementations associated with the 15 configuration features that seem more like scope-creep than necessities, I was able to get a working version of WebpackDevServer that had 73% less code than before! This was a reduction of the code from 900 lines to about 240.
 
 There would likely be more methods than the three listed, but the point is that by removing features from the webpack dev server which are orthogonal to its core purpose, we are left with more bandwidth to implement more core features which are more applicable to what the dev server offers, for example by allowing a rich plugin system for extending or tapping into certain steps in the dev server processes, or extending the dev server to become a DevOps server, which is the goal of this project.
