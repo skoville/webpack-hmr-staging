@@ -1,0 +1,53 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        
+        /* Type Definitions */
+        "lib": ["esnext"],
+        "types": ["webpack-env"],
+
+        /* Code Quality */
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "strict": true, // noImplicitAny noImplicitThis alwaysStrict strictBindCallApply strictFunctionTypes strictPropertyInitialization strictNullChecks
+
+        /* Module Resolution */
+        "baseUrl": "./src",
+        "paths": {
+            "@node/*": ["node/*"],
+            "@universal/*": ["universal/*"],
+            "@web/*": ["web/*"]
+        }
+
+        /** Look into the following:
+
+            allowSyntheticDefaultImports
+            "declaration": true,
+            "declarationMap": true,
+            "diagnostics"
+            downlevelIteration
+            emitDecoratorMetadata
+            esModuleInterop
+            experimentalDecorators
+            extendedDiagnostics <-- doesn't seem to be in the tsconfig.json schema
+            
+            importHelpers
+            isolatedModules
+            listEmittedFiles
+            listFiles
+            module: ESNext
+            moduleResolution
+            noEmitOnError
+            noErrorTruncation
+            pretty
+            removeComments
+            resolveJsonModule
+            sourceMap
+            sourceRoot
+            stripInternal // Could be a good way to hide internal details.
+            traceResolution
+        */
+    }
+}

@@ -1,0 +1,1 @@
+export const message = "<html><body>Jamba Moose</body></html>";

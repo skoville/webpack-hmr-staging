@@ -1,0 +1,49 @@
+{
+  "name": "scoville-webpack",
+  "version": "0.0.1",
+  "description": "webpack-based, hot code swapping CI/CD platform.",
+  "main": "index.js",
+  "dependencies": {
+    "js-logger": "^1.6.0",
+    "memory-fs": "^0.4.1",
+    "webpack": "^4.29.6",
+    "yargs": "^13.2.2"
+  },
+  "devDependencies": {
+    "@types/memory-fs": "^0.3.2",
+    "@types/node": "^10.12.23",
+    "@types/webpack": "^4.4.26",
+    "@types/webpack-env": "^1.13.7",
+    "@types/yargs": "^12.0.10",
+    "typescript": "^3.3.3"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scoville-cicd/scoville-webpack.git"
+  },
+  "keywords": [
+    "webpack",
+    "hmr",
+    "HotModuleReplacementPlugin",
+    "WebpackDevServer",
+    "webpack-dev-server",
+    "hot",
+    "replacement",
+    "reload",
+    "live",
+    "ci",
+    "cd",
+    "continuous",
+    "integration",
+    "deployment"
+  ],
+  "author": "Alexander Leung",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/scoville-cicd/scoville-webpack/issues"
+  },
+  "homepage": "https://github.com/scoville-cicd/scoville-webpack#readme"
+}
