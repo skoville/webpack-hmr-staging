@@ -1,4 +1,4 @@
-import { ClientEventRegistry, EventName } from "../event-registry";
+import { ClientEventRegistry, ClientEventName } from "../event-registry";
 import { AbstractClientModule } from "./module";
 
 export abstract class AbstractClientApplicationRestarter extends AbstractClientModule {
@@ -6,7 +6,7 @@ export abstract class AbstractClientApplicationRestarter extends AbstractClientM
         super();
         ClientEventRegistry
             .getInstance()
-            .resolvePostMiddlewareEventHandler(EventName.RestartApplication, this.restartApplication.bind(this));
+            .resolvePostMiddlewareEventHandler(ClientEventName.RestartApplication, this.restartApplication.bind(this));
     }
     protected abstract async restartApplication(): Promise<void>;
 }

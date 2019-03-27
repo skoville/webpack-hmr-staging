@@ -4,7 +4,7 @@ import stripAnsi from 'strip-ansi';
 import * as Logger from 'js-logger';
 import { MessageType, Message } from '@universal/shared/api-model';
 import { ILogger } from 'js-logger/src/types';
-//import { ClientModuleRegistry } from './module-registry';
+import { ClientEventRegistry, ClientEventName } from './event-registry';
 
 Logger.useDefaults();
 Logger.setHandler(
@@ -22,8 +22,6 @@ Logger.setHandler(
     })
 );
 
-type MessageMiddleware = (message: Message) => Promise<boolean>;
-
 export class ClientRuntime {
     private currentHash: string;
     private hotEnabled: boolean;
@@ -34,26 +32,28 @@ export class ClientRuntime {
     public constructor() {
         this.log = Logger.get(ClientRuntime.name);
         if(module.hot) {
-            this.hotSwappingRuntime = new HotSwapRuntime(this);
+            this.hotSwappingRuntime = new HotSwapRuntime(this, module.hot);
         }
+        const eventRegistry = ClientEventRegistry.getInstance();
+        eventRegistry.resolvePostMiddlewareEventHandler(ClientEventName.HandleMessage, this.handleMessage.bind(this));
     }
 
-    public restartApplication() {
+    private async triggerRestartApplicationEvent() {
+        const eventRegistry = ClientEventRegistry.getInstance();
+        const publishers = await eventRegistry.eventPublishers;
+        await publishers[ClientEventName.RestartApplication].publish();
+    }
+
+    public async restartApplication() {
         if(this.restartingEnabled) {
             this.log.info("Restarting...");
-            ClientModuleRegistry.getApplicationRestarter().restartApplication();
+            await this.triggerRestartApplicationEvent();
         } else {
             this.log.error("Manual Restart required.");
         }
     }
 
-    public async handleMessage(messageString: string) {
-        const message: Message = JSON.parse(messageString);
-        const middlewareResponses = await Promise.all(this.middleware.map(middleware => middleware(message)));
-        if(middlewareResponses.includes(false)) {
-            console.log("not applying message to runtime");
-            return;
-        }
+    public async handleMessage(message: Message) {
         switch(message.type) {
             case MessageType.NoChange:
                 this.log.info('Nothing changed.');
@@ -120,20 +120,22 @@ export class ClientRuntime {
 }
 
 class HotSwapRuntime {
-    private lastHash: string;
+    private lastHash?: string;
     private clientRuntime: ClientRuntime;
     private log: ILogger;
+    private hot: __WebpackModuleApi.Hot;
 
-    public constructor(clientRuntime: ClientRuntime) {
+    public constructor(clientRuntime: ClientRuntime, hot: __WebpackModuleApi.Hot) {
         this.log = Logger.get(HotSwapRuntime.name);
         this.clientRuntime = clientRuntime;
+        this.hot = hot;
         this.log.info("Waiting for update signal from SWP...");
     }
 
     public hotSwap(hash: string) {
         this.lastHash = hash;
         if(!this.hashIsUpToDate()) {
-            const hmrStatus = module.hot.status();
+            const hmrStatus = this.hot.status();
             switch(hmrStatus) {
                 case "idle":
                     this.log.info("Checking for updates from the server...");
@@ -149,13 +151,14 @@ class HotSwapRuntime {
     }
 
     private hashIsUpToDate() {
+        if (this.lastHash === undefined) return false;
         return this.lastHash.indexOf(__webpack_hash__) !== -1;
     }
 
     private async check() {
         try {
             // TODO: PR to hmr @types repo to include definition of module.hot.check that returns a promise so we don't have to use any
-            const updatedModules: __WebpackModuleApi.ModuleId[] = await (module.hot as any).check(true);
+            const updatedModules: __WebpackModuleApi.ModuleId[] = await (this.hot as any).check(true);
             if(!updatedModules) {
                 this.log.warn("Cannot find update. Need to do a full Restart!");
                 this.log.warn("(Probably because of restarting the Scoville Webpack Server)");
@@ -168,7 +171,7 @@ class HotSwapRuntime {
                 this.log.info("App is up to date.");
             }
         } catch(err) {
-            const hmrStatus = module.hot.status();
+            const hmrStatus = this.hot.status();
             switch(hmrStatus) {
                 case "abort":
                 case "fail":

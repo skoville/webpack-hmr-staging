@@ -2,6 +2,7 @@ import { AbstractClientMessageTransporter } from "./abstract/message-transporter
 import socketio, {Socket} from 'socket.io-client';
 import { SOCKET_MESSAGE_EVENT_NAME } from "@universal/shared/api-model";
 
+// TODO: replace console.log statements with logger calls
 export class SocketIOClientMessageTransporter extends AbstractClientMessageTransporter {
     private socket: typeof Socket;
     

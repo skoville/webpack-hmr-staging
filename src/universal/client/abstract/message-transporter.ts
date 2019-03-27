@@ -1,5 +1,5 @@
 import { AbstractClientModule } from "./module";
-import { ClientEventRegistry, EventName } from "../event-registry";
+import { ClientEventRegistry, ClientEventName } from "../event-registry";
 import { Message } from "@universal/shared/api-model";
 
 export abstract class AbstractClientMessageTransporter extends AbstractClientModule {
@@ -7,12 +7,12 @@ export abstract class AbstractClientMessageTransporter extends AbstractClientMod
         super();
         ClientEventRegistry
             .getInstance()
-            .resolvePostMiddlewareEventHandler(EventName.SendMessage, this.sendMessage.bind(this));
+            .resolvePostMiddlewareEventHandler(ClientEventName.SendMessage, this.sendMessage.bind(this));
     }
     protected async fireHandleMessageEvent(messageString: string) {
         const message: Message = JSON.parse(messageString);
         const publishers = await ClientEventRegistry.getInstance().eventPublishers;
-        await publishers[EventName.HandleMessage].publish(message);
+        await publishers[ClientEventName.HandleMessage].publish(message);
     }
     protected abstract async sendMessage(messageString: string): Promise<void>;
 }

@@ -1,20 +1,31 @@
-import { Event, EventHandler } from "@universal/shared/event";
 import { Message } from "@universal/shared/api-model";
+import { AbstractEventRegistry } from "@universal/shared/abstract-event-registry";
 
 // Define all possible events.
-export enum EventName {
+export enum ClientEventName {
     RestartApplication = 'RESTART_APPLICATION',
     HandleMessage = 'HANDLE_MESSAGE',
     SendMessage = 'SEND_MESSAGE'
 }
 
 // Map each possible event to a corresponding event payload.
-export interface EventPayloads {
-    [EventName.RestartApplication]: void;
-    [EventName.HandleMessage]: Message;
-    [EventName.SendMessage]: string;
+export interface ClientEventPayloadMap {
+    [ClientEventName.RestartApplication]: void;
+    [ClientEventName.HandleMessage]: Message;
+    [ClientEventName.SendMessage]: string;
 }
 
+export class ClientEventRegistry extends AbstractEventRegistry<ClientEventPayloadMap> {
+    public constructor() {
+        super({
+            [ClientEventName.RestartApplication]: undefined,
+            [ClientEventName.HandleMessage]: undefined,
+            [ClientEventName.SendMessage]: undefined
+        });
+    }
+}
+
+/*
 // The EventLoader allows us to load the different event handlers.
 // Each event handler is defined as a protected method in the different
 // abstract module classes.

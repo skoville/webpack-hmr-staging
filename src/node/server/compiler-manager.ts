@@ -2,7 +2,7 @@ import * as webpack from 'webpack';
 import MemoryFileSystem = require('memory-fs');
 import * as path from 'path';
 import * as fs from 'fs';
-import {PluginOptions} from './scoville-webpack';
+import {PluginOptions} from './plugin';
 import {MessageType, Message} from '@universal/shared/api-model';
 import * as Logger from 'js-logger';
 
@@ -10,8 +10,6 @@ const PLUGIN_NAME = "WebpackDevSecOps";
 
 const log = Logger;
 Logger.useDefaults();
-
-console
 
 type MessageHandler = (message:string) => void;
 type FileSystem = typeof fs | MemoryFileSystem;
