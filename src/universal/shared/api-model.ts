@@ -14,12 +14,6 @@ export type Message =
             assets: string[];
         }
     } |
-    {   type: MessageType.UpdateStrategy;
-        data: {
-            hot: boolean;
-            restarting: boolean;
-        }
-    } |
     {   type: MessageType.ForceRestart;
         data: {
             reason: string;
@@ -30,6 +24,5 @@ export enum MessageType {
     Recompiling = 'recompiling',
     NoChange = 'no-change',
     Update = 'update',
-    UpdateStrategy = 'update-strategy',
     ForceRestart = 'force-restart'
 }

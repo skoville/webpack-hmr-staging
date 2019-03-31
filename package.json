@@ -4,14 +4,16 @@
   "description": "webpack-based, hot code swapping CI/CD platform.",
   "main": "index.js",
   "dependencies": {
-    "js-logger": "^1.6.0",
+    "ansicolor": "^1.1.81",
     "memory-fs": "^0.4.1",
+    "socket.io-client": "^2.2.0",
     "webpack": "^4.29.6",
     "yargs": "^13.2.2"
   },
   "devDependencies": {
     "@types/memory-fs": "^0.3.2",
     "@types/node": "^10.12.23",
+    "@types/socket.io-client": "^1.4.32",
     "@types/webpack": "^4.4.26",
     "@types/webpack-env": "^1.13.7",
     "@types/yargs": "^12.0.10",
@@ -38,7 +40,9 @@
     "cd",
     "continuous",
     "integration",
-    "deployment"
+    "deployment",
+    "scoville",
+    "live coding"
   ],
   "author": "Alexander Leung",
   "license": "MIT",

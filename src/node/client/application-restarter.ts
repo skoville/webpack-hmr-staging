@@ -2,7 +2,7 @@ import { AbstractClientApplicationRestarter } from "@universal/client/abstract/a
 import { MessageType } from "@universal/shared/api-model";
 import { BundleRunnerToClientMessageType, BundleRunnerToClientMessage } from "@node/shared/apis/bundle-runner-to-client-message";
 import { ClientToBundleRunnerMessage, ClientToBundleRunnerMessageType } from "@node/shared/apis/client-to-bundle-runner-message";
-import { EventName } from "@universal/client/event-registry";
+import { ClientEvent } from "@universal/client/event";
 
 // TODO: some of the logic in here seems unrelated to restarting the application.
 // I think we need to change it from ApplicationRestarter to something along the
@@ -28,23 +28,21 @@ export class NodeClientApplicationRestarter extends AbstractClientApplicationRes
         // download the HMR assets (update.json and updated js files) before the HMR runtime tries to load them.
         // We must do this because HMR in node assumes the assets are locally stored, unlike HMR in the web which knows how
         // to download the update files.
-        this.eventSubscribers.then(subscribers => {
-            subscribers[EventName.HandleMessage].subscribeMiddleware(async message => {
-                if(message.type === MessageType.Update) {
-                    await new Promise(resolve => {
-                        const sequenceNumber = this.allocatedSequenceNumbers;
-                        this.allocatedSequenceNumbers++;
-                        this.pendingMessages[sequenceNumber] = {resolve, done: false};
-                        const { publicPath, assets } = message.data;
-                        const nodeBundleRunnerMessage: ClientToBundleRunnerMessage = {
-                            type: ClientToBundleRunnerMessageType.UpdateRequest,
-                            data: { sequenceNumber, publicPath, assets }
-                        };
-                        this.sendMessageToBundleRunner(nodeBundleRunnerMessage);
-                    });
-                }
-            });
-        })
+        this.subscribeMiddleware(ClientEvent.HandleMessage, async message => {
+            if(message.type === MessageType.Update) {
+                await new Promise(resolve => {
+                    const sequenceNumber = this.allocatedSequenceNumbers;
+                    this.allocatedSequenceNumbers++;
+                    this.pendingMessages[sequenceNumber] = {resolve, done: false};
+                    const { publicPath, assets } = message.data;
+                    const nodeBundleRunnerMessage: ClientToBundleRunnerMessage = {
+                        type: ClientToBundleRunnerMessageType.UpdateRequest,
+                        data: { sequenceNumber, publicPath, assets }
+                    };
+                    this.sendMessageToBundleRunner(nodeBundleRunnerMessage);
+                });
+            }
+        });
         process.on("message", (nodeBundleRunnerResponse: BundleRunnerToClientMessage) => {
             if(nodeBundleRunnerResponse.type !== BundleRunnerToClientMessageType.UpdateResponse) {
                 throw new Error("unexpected message sent to child process of " + nodeBundleRunnerResponse);
@@ -67,7 +65,7 @@ export class NodeClientApplicationRestarter extends AbstractClientApplicationRes
         });
     }
 
-    protected async restartApplication() {
+    public async restartApplication() {
         this.sendMessageToBundleRunner(
             {type: ClientToBundleRunnerMessageType.Restart},
             () => { process.exit(); }

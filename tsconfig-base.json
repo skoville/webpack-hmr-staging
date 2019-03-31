@@ -19,7 +19,10 @@
             "@node/*": ["node/*"],
             "@universal/*": ["universal/*"],
             "@web/*": ["web/*"]
-        }
+        },
+
+        /* Meta Programming */
+        "experimentalDecorators": true
 
         /** Look into the following:
 

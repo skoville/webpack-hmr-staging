@@ -1,18 +1,13 @@
 import { AbstractClientModule } from "./module";
-import { ClientEventRegistry, ClientEventName } from "../event-registry";
+import { ClientEvent } from "../event";
 import { Message } from "@universal/shared/api-model";
+import { AbstractModuleRegistry } from "@universal/shared/abstract/module-registry";
 
 export abstract class AbstractClientMessageTransporter extends AbstractClientModule {
-    protected constructor() {
-        super();
-        ClientEventRegistry
-            .getInstance()
-            .resolvePostMiddlewareEventHandler(ClientEventName.SendMessage, this.sendMessage.bind(this));
-    }
-    protected async fireHandleMessageEvent(messageString: string) {
+    @AbstractModuleRegistry.EventTrigger
+    protected async [ClientEvent.HandleMessage](messageString: string) {
         const message: Message = JSON.parse(messageString);
-        const publishers = await ClientEventRegistry.getInstance().eventPublishers;
-        await publishers[ClientEventName.HandleMessage].publish(message);
+        return message;
     }
-    protected abstract async sendMessage(messageString: string): Promise<void>;
+    public abstract async sendMessage(messageString: string): Promise<void>;
 }

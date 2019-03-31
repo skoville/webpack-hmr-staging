@@ -1,12 +1,5 @@
-import { ClientEventRegistry, ClientEventName } from "../event-registry";
 import { AbstractClientModule } from "./module";
-
+import { Log } from "@universal/shared/log";
 export abstract class AbstractClientLogger extends AbstractClientModule {
-    protected constructor() {
-        super();
-        ClientEventRegistry
-            .getInstance()
-            //.resolvePostMiddlewareEventHandler(EventName.RestartApplication, this.restartApplication.bind(this));
-    }
-    protected abstract async log(): Promise<void>;
+    public abstract async handleLogEvent(request: Log.Request): Promise<void>;
 }

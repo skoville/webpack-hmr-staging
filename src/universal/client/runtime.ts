@@ -1,53 +1,36 @@
 /*globals __webpack_hash__*/
 
-import stripAnsi from 'strip-ansi';
-import * as Logger from 'js-logger';
 import { MessageType, Message } from '@universal/shared/api-model';
-import { ILogger } from 'js-logger/src/types';
-import { ClientEventRegistry, ClientEventName } from './event-registry';
+import { ClientEvent } from './event';
+import { AbstractModuleRegistry } from '@universal/shared/abstract/module-registry';
+import { AbstractClientModule } from './abstract/module';
+import { Log } from '@universal/shared/log';
 
-Logger.useDefaults();
-Logger.setHandler(
-    Logger.createDefaultHandler({
-        formatter: (messages, context) => {
-            switch(context.name) {
-                case ClientRuntime.name:
-                    messages.unshift("[SWP] ");
-                    break;
-                case HotSwapRuntime.name:
-                    messages.unshift("[HMR] ");
-                    break;
-            }
+export class ClientRuntime extends AbstractClientModule {
+    private currentHash?: string;
+    private readonly hotEnabled: boolean;
+    private readonly restartingEnabled: boolean;
+    private readonly hotSwappingRuntime?: HotSwapRuntime;
+
+    public constructor(hotEnabled: boolean, restartingEnabled: boolean) {
+        super("[SWP] ");
+        this.hotEnabled = hotEnabled;
+        this.restartingEnabled = restartingEnabled;
+        if (this.hotEnabled !== (module.hot !== undefined)) {
+            throw new Error(`hot swapping is ${this.hotEnabled ? 'enabled' : 'disabled'}, but webpack's module.hot is${module.hot === undefined ? ' not ' : ' '}defined.`);
         }
-    })
-);
-
-export class ClientRuntime {
-    private currentHash: string;
-    private hotEnabled: boolean;
-    private restartingEnabled: boolean;
-    private log: ILogger;
-    private hotSwappingRuntime: HotSwapRuntime;
-
-    public constructor() {
-        this.log = Logger.get(ClientRuntime.name);
         if(module.hot) {
-            this.hotSwappingRuntime = new HotSwapRuntime(this, module.hot);
+            this.hotSwappingRuntime = new HotSwapRuntime(this, module.hot, this.log);
         }
-        const eventRegistry = ClientEventRegistry.getInstance();
-        eventRegistry.resolvePostMiddlewareEventHandler(ClientEventName.HandleMessage, this.handleMessage.bind(this));
     }
 
-    private async triggerRestartApplicationEvent() {
-        const eventRegistry = ClientEventRegistry.getInstance();
-        const publishers = await eventRegistry.eventPublishers;
-        await publishers[ClientEventName.RestartApplication].publish();
-    }
+    @AbstractModuleRegistry.EventTrigger
+    private async [ClientEvent.RestartApplication]() {}
 
-    public async restartApplication() {
+    public async startOrPromptAppRestart() {
         if(this.restartingEnabled) {
             this.log.info("Restarting...");
-            await this.triggerRestartApplicationEvent();
+            await this[ClientEvent.RestartApplication]();
         } else {
             this.log.error("Manual Restart required.");
         }
@@ -61,35 +44,16 @@ export class ClientRuntime {
             case MessageType.Recompiling:
                 this.log.info('Source changed. Recompiling...');
                 break;
-            case MessageType.UpdateStrategy:
-                this.hotEnabled = message.data.hot;
-                if(this.hotEnabled) {
-                    if(module.hot) {
-                        this.log.info(`App Hot-Swapping enabled.`);
-                    } else {
-                        this.log.error(`Unable to enable App Hot-Swapping, because HMR Plugin is not loaded.`);
-                        this.hotEnabled = false;
-                    }
-                } else {
-                    this.log.info('App Hot-Swapping disabled.')
-                }
-                this.restartingEnabled = message.data.restarting;
-                this.log.info(`App Restarting ${this.restartingEnabled ? 'enabled' : 'disabled'}.`);
-                break;
             case MessageType.Update:
                 const firstHash = !this.currentHash;
                 this.currentHash = message.data.hash;
                 if(message.data.errors.length > 0) {
                     this.log.error('Errors while compiling. App Hot-Swap/Restart prevented.');
-                    message.data.errors
-                        .map(error => stripAnsi(error))
-                        .forEach(error => {this.log.error(error)});
+                    message.data.errors.forEach(error => {this.log.info(error)}); // should already have some ansi error coloring inside.
                 } else {
                     if (message.data.warnings.length > 0) {
                         this.log.warn('Warnings while compiling.');
-                        message.data.warnings
-                            .map(warning => stripAnsi(warning))
-                            .forEach(strippedWarning => {this.log.warn(strippedWarning)});
+                        message.data.warnings.forEach(strippedWarning => {this.log.info(strippedWarning)}); // should already have some ansi warning coloring inside.
                     }
                     if(!firstHash) this.hotSwapOrRestart();
                 }
@@ -98,20 +62,18 @@ export class ClientRuntime {
             // It could be used by others trying to extend the functionality themselves.
             case MessageType.ForceRestart:
                 this.log.info(`"${message.data.reason}". App Restarting...`);
-                this.restartApplication();
+                this.startOrPromptAppRestart();
                 break;
-            default:
-                this.log.error(`Received an unsupported message: "${messageString}".`);
         }
     }
 
     private hotSwapOrRestart() {
-        if(this.hotEnabled) {
+        if(this.hotEnabled && this.hotSwappingRuntime) {
             this.log.info('App updated. Hot Swapping...');
             this.hotSwappingRuntime.hotSwap(this.currentHash);
         } else if(this.restartingEnabled) {
             this.log.info('App updated. Restarting...');
-            this.restartApplication();
+            this.startOrPromptAppRestart();
         } else {
             this.log.info('App updated, but Hot Swapping and Restarting are disabled.');
         }
@@ -122,17 +84,17 @@ export class ClientRuntime {
 class HotSwapRuntime {
     private lastHash?: string;
     private clientRuntime: ClientRuntime;
-    private log: ILogger;
     private hot: __WebpackModuleApi.Hot;
+    private log: Log.Logger;
 
-    public constructor(clientRuntime: ClientRuntime, hot: __WebpackModuleApi.Hot) {
-        this.log = Logger.get(HotSwapRuntime.name);
+    public constructor(clientRuntime: ClientRuntime, hot: __WebpackModuleApi.Hot, log: Log.Logger) {
         this.clientRuntime = clientRuntime;
         this.hot = hot;
+        this.log = log.clone("[HMR] ");
         this.log.info("Waiting for update signal from SWP...");
     }
 
-    public hotSwap(hash: string) {
+    public hotSwap(hash?: string) {
         this.lastHash = hash;
         if(!this.hashIsUpToDate()) {
             const hmrStatus = this.hot.status();
@@ -144,7 +106,7 @@ class HotSwapRuntime {
                 case "abort":
                 case "fail":
                     this.log.warn(`Cannot apply update as a previous update ${hmrStatus}ed. Need to do a full Restart!`);
-                    this.clientRuntime.restartApplication();
+                    this.clientRuntime.startOrPromptAppRestart();
                     break;
             }
         }
@@ -162,7 +124,7 @@ class HotSwapRuntime {
             if(!updatedModules) {
                 this.log.warn("Cannot find update. Need to do a full Restart!");
                 this.log.warn("(Probably because of restarting the Scoville Webpack Server)");
-                this.clientRuntime.restartApplication();
+                this.clientRuntime.startOrPromptAppRestart();
                 return;
             }
             if(!this.hashIsUpToDate()) this.check();
@@ -177,7 +139,7 @@ class HotSwapRuntime {
                 case "fail":
                     this.log.warn("Cannot apply updated. Need to do a full Restart!");
                     this.log.warn(err.stack || err.message);
-                    this.clientRuntime.restartApplication();
+                    this.clientRuntime.startOrPromptAppRestart();
                     break;
                 default:
                     this.log.warn("Update failed: " + err.stack || err.message);
