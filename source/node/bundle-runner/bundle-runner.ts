@@ -195,7 +195,7 @@ export class DownloadingNodeBundleRunner extends NodeBundleRunner {
                     .map(child => path.join(pathToRemove, child))
                     .map(this.recursiveRemoval.bind(this)));
                 await rmdirAsync(pathToRemove);
-            } else {
+            } else { // it is a file. You delete a file by unlinking it.
                 await unlinkAsync(pathToRemove);
             }
         }
