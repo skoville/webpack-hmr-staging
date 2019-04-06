@@ -4,7 +4,7 @@
   "description": "webpack-based, hot code swapping CI/CD platform.",
   "main": "index.js",
   "dependencies": {
-    "ansicolor": "^1.1.81",
+    "ansicolor": "^1.1.83",
     "memory-fs": "^0.4.1",
     "socket.io-client": "^2.2.0",
     "webpack": "^4.29.6",
@@ -14,9 +14,11 @@
     "@types/memory-fs": "^0.3.2",
     "@types/node": "^10.12.23",
     "@types/socket.io-client": "^1.4.32",
+    "@types/ts-nameof": "^2.0.0",
     "@types/webpack": "^4.4.26",
     "@types/webpack-env": "^1.13.7",
     "@types/yargs": "^12.0.10",
+    "ts-nameof": "^3.0.3",
     "typescript": "^3.3.3"
   },
   "scripts": {

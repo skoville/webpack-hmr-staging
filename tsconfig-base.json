@@ -4,7 +4,7 @@
         
         /* Type Definitions */
         "lib": ["esnext"],
-        "types": ["webpack-env"],
+        "types": ["webpack-env","ts-nameof"],
 
         /* Code Quality */
         "forceConsistentCasingInFileNames": true,
@@ -14,7 +14,7 @@
         "strict": true, // noImplicitAny noImplicitThis alwaysStrict strictBindCallApply strictFunctionTypes strictPropertyInitialization strictNullChecks
 
         /* Module Resolution */
-        "baseUrl": "./src",
+        "baseUrl": "./source",
         "paths": {
             "@node/*": ["node/*"],
             "@universal/*": ["universal/*"],
@@ -52,5 +52,5 @@
             stripInternal // Could be a good way to hide internal details.
             traceResolution
         */
-    }
+    },
 }
