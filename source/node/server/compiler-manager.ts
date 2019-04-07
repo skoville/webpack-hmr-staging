@@ -17,12 +17,11 @@ export class CompilerManager {
     private valid: boolean;
     private compilationCallbacks: Function[];
     private latestUpdateMessage: string | null;
-    private updateStrategyMessage: string;
 
     public constructor(compiler: webpack.Compiler, onMessage: MessageHandler, options: PluginOptions) {
         if(options.memoryFS) {
             this.fs = new MemoryFileSystem();
-            compiler.outputFileSystem = this.fs as any;
+            compiler.outputFileSystem = this.fs;
         } else {
             this.fs = fs;
         }
@@ -31,26 +30,11 @@ export class CompilerManager {
         this.valid = false;
         this.compilationCallbacks = [];
         this.latestUpdateMessage = null;
-
-        // TODO: consider refactoring.
-        const updateStrategyMessage: Message = {
-            type: MessageType.UpdateStrategy,
-            data: {
-                hot: options.hot,
-                restarting: options.restarting
-            }
-        };
-        this.updateStrategyMessage = JSON.stringify(updateStrategyMessage);
-
         this.addHooks();
     }
 
     public getLatestUpdateMessage(): string | null {
         return this.latestUpdateMessage;
-    }
-
-    public getUpdateStrategyMessage(): string {
-        return this.updateStrategyMessage;
     }
 
     public async getReadStream(requestPath: string) {
