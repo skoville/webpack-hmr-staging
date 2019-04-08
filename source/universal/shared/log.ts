@@ -44,10 +44,10 @@ export namespace Log {
 
         // The logging methods.
         public trace(message: string) {
-            this.handle(Level.TRACE, message);
+            this.handle(Level.TRACE, ansicolor.cyan(message));
         }
         public debug(message: string) {
-            this.handle(Level.DEBUG, message);
+            this.handle(Level.DEBUG, ansicolor.magenta(message));
         }
         public info(message: string) {
             this.handle(Level.INFO, message);

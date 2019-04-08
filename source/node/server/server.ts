@@ -1,8 +1,8 @@
-import {WebpackDevSecOps} from './scoville-webpack';
-import express from 'express';
-import mime from 'mime';
+import {PluginManager} from './scoville-webpack';
+import * as express from 'express';
+import * as mime from 'mime';
 import * as http from 'http';
-import socketio from 'socket.io';
+import * as socketio from 'socket.io';
 import {SOCKET_MESSAGE_EVENT_NAME} from '@universal/shared/api-model';
 
 const TEMP_COMPILER_ID = "web";
@@ -17,9 +17,13 @@ export class WebpackDevSecOpsServer {
         this.sockets = [];
         const app = express();
         app.get("*", async (req, res, next) => {
-            const stream = await WebpackDevSecOps.getReadStream(TEMP_COMPILER_ID, req.path === "/" ? "/index.html" : req.path);
+            const stream = await PluginManager.getReadStream(TEMP_COMPILER_ID, req.path === "/" ? "/index.html" : req.path);
             if(!stream) return next();
-            res.setHeader("Content-Type", mime.getType(req.path));
+            const mimeType = mime.getType(req.path);
+            if (mimeType == null) {
+                throw new Error(`unable to resolve mim type for resource at '${req.path}'`);
+            }
+            res.setHeader("Content-Type", mimeType);
             stream.pipe(res);
         });
         this.server = new http.Server(app);
@@ -27,8 +31,8 @@ export class WebpackDevSecOpsServer {
         io.on('connection', socket => {
             console.log("NEW CONNECTION");
             console.log(SOCKET_MESSAGE_EVENT_NAME);
-            io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, WebpackDevSecOps.getUpdateStrategyMessage(TEMP_COMPILER_ID));
-            const latestUpdateMessage = WebpackDevSecOps.getLatestUpdateMessage(TEMP_COMPILER_ID);
+            io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, PluginManager.getUpdateStrategyMessage(TEMP_COMPILER_ID));
+            const latestUpdateMessage = PluginManager.getLatestUpdateMessage(TEMP_COMPILER_ID);
             // Make sure only to send the latest update message if there is in face a message to send.
             if(latestUpdateMessage) {
                 io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, latestUpdateMessage);
@@ -44,7 +48,7 @@ export class WebpackDevSecOpsServer {
         this.server.listen(port, () => {
             console.log("listening");
         });
-        this.unsubscribeToMessages = WebpackDevSecOps.subscribeToMessages((id, messageString) => {
+        this.unsubscribeToMessages = PluginManager.subscribeToMessages((id, messageString) => {
             console.log("receiving message: " + messageString);
             // Will want to end up using the socket.io emitted boolean to tell what clients are up to date and which are behind.
             this.sockets.forEach(socket => {io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, messageString);});
@@ -59,16 +63,6 @@ export class WebpackDevSecOpsServer {
         this.server.close(() => {
             cb();
         });
-    }
-
-}
-
-// Sometimes sockets will disconnect and we need to make sure that they receive the messages they missed.
-// Thus each SocketManager can keep track of which message in the queue they have seen.
-class SocketManager {
-
-    public constructor() {
-
     }
 
 }

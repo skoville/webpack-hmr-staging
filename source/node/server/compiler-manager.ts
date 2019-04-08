@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import {PluginOptions} from './plugin';
 import {MessageType, Message} from '@universal/shared/api-model';
+import { log } from '@node/shared/temp-logger';
 
 const PLUGIN_NAME = "WebpackDevSecOps";
 type MessageHandler = (message:string) => void;

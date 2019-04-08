@@ -8,8 +8,8 @@ import { promisify } from 'util';
 
 import { BundleRunnerToClientMessage, BundleRunnerToClientMessageType } from '@node/shared/apis/bundle-runner-to-client-message';
 import { ClientToBundleRunnerMessage, ClientToBundleRunnerMessageType } from '@node/shared/apis/client-to-bundle-runner-message';
-import { Logger } from '@node/shared/logger';
 import { TOOL_NAME } from '@universal/shared/tool-name';
+import { log } from '../shared/temp-logger';
 
 const existsAsync = promisify(fs.exists);
 const statAsync = promisify(fs.stat);
@@ -62,13 +62,13 @@ export class NodeBundleRunner {
                 throw err;
             })
             .on("exit", code => {
-                Logger.cyan("\nBundle process exited with code " + code + "\nBundle file = '" + this.filePath + "'.");
+                log.trace("\nBundle process exited with code " + code + "\nBundle file = '" + this.filePath + "'.");
                 if(this.shouldRestart) {
-                    Logger.yellow("Restarting...\n");
+                    log.warn("Restarting...\n");
                     this.shouldRestart = false;
                     this.run();
                 } else {
-                    Logger.red("Exiting.\n");
+                    log.error("Exiting.\n");
                     process.exit();
                 }
             });

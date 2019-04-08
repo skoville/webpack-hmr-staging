@@ -5,14 +5,20 @@
   "main": "index.js",
   "dependencies": {
     "ansicolor": "^1.1.83",
+    "express": "^4.16.4",
     "memory-fs": "^0.4.1",
+    "mime": "^2.4.2",
+    "socket.io": "^2.2.0",
     "socket.io-client": "^2.2.0",
     "webpack": "^4.29.6",
     "yargs": "^13.2.2"
   },
   "devDependencies": {
+    "@types/express": "^4.16.1",
     "@types/memory-fs": "^0.3.2",
+    "@types/mime": "^2.0.1",
     "@types/node": "^10.12.23",
+    "@types/socket.io": "^2.1.2",
     "@types/socket.io-client": "^1.4.32",
     "@types/ts-nameof": "^2.0.0",
     "@types/webpack": "^4.4.26",

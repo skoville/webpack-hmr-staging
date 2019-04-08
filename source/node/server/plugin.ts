@@ -1,5 +1,6 @@
 import * as webpack from 'webpack';
 import { IClientConfiguration } from '@universal/shared/client-configuration';
+import { CompilerManager } from './compiler-manager';
 
 export interface PluginOptions {
     client: IClientConfiguration;
@@ -21,7 +22,6 @@ export class Plugin implements webpack.Plugin {
     }
 
     public apply(compiler: webpack.Compiler) {
-        const {registry, messageSubscribers} = WebpackDevSecOps;
         const {id, options} = this;
         const {client} = options;
         
@@ -34,7 +34,9 @@ export class Plugin implements webpack.Plugin {
                 throw new Error(`The ${nameof.full(client.enableApplicationRestarting)} option was set to true for compiler with id=${id}, but the webpack config does not contain an instance of ${nameof.full(webpack.HotModuleReplacementPlugin)}`);
             }
         }
-        registry[id] = new CompilerManager(compiler, message => {
+
+        
+        new CompilerManager(compiler, message => {
             messageSubscribers.forEach(async subscriber => {subscriber(id, message);});
         }, options);
     }

@@ -1,6 +1,6 @@
 import * as yargs from 'yargs';
-import {Logger} from '@node/shared/logger';
 import {NodeBundleRunner, DownloadingNodeBundleRunner} from './bundle-runner';
+import { log } from '../shared/temp-logger';
 
 export class CLI {
     public constructor() {
@@ -59,9 +59,9 @@ export class CLI {
     }
 
     private printCLIError(error: Error) {
-        Logger.red(error.message+ "\n");
+        log.fatal(error.message+ "\n");
         if (error.stack) {
-            Logger.magenta(error.stack);
+            log.debug(error.stack);
         }
         yargs.showHelp();
         process.exit();
