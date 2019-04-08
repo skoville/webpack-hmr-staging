@@ -1,4 +1,4 @@
-import {PluginManager} from './scoville-webpack';
+import {CompilerManagerRegistry} from './compiler-manager-registry';
 import * as express from 'express';
 import * as mime from 'mime';
 import * as http from 'http';
@@ -17,7 +17,7 @@ export class WebpackDevSecOpsServer {
         this.sockets = [];
         const app = express();
         app.get("*", async (req, res, next) => {
-            const stream = await PluginManager.getReadStream(TEMP_COMPILER_ID, req.path === "/" ? "/index.html" : req.path);
+            const stream = await CompilerManagerRegistry.getReadStream(TEMP_COMPILER_ID, req.path === "/" ? "/index.html" : req.path);
             if(!stream) return next();
             const mimeType = mime.getType(req.path);
             if (mimeType == null) {
@@ -31,8 +31,8 @@ export class WebpackDevSecOpsServer {
         io.on('connection', socket => {
             console.log("NEW CONNECTION");
             console.log(SOCKET_MESSAGE_EVENT_NAME);
-            io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, PluginManager.getUpdateStrategyMessage(TEMP_COMPILER_ID));
-            const latestUpdateMessage = PluginManager.getLatestUpdateMessage(TEMP_COMPILER_ID);
+            io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, CompilerManagerRegistry.getUpdateStrategyMessage(TEMP_COMPILER_ID));
+            const latestUpdateMessage = CompilerManagerRegistry.getLatestUpdateMessage(TEMP_COMPILER_ID);
             // Make sure only to send the latest update message if there is in face a message to send.
             if(latestUpdateMessage) {
                 io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, latestUpdateMessage);
@@ -48,7 +48,7 @@ export class WebpackDevSecOpsServer {
         this.server.listen(port, () => {
             console.log("listening");
         });
-        this.unsubscribeToMessages = PluginManager.subscribeToMessages((id, messageString) => {
+        this.unsubscribeToMessages = CompilerManagerRegistry.subscribeToMessages((id, messageString) => {
             console.log("receiving message: " + messageString);
             // Will want to end up using the socket.io emitted boolean to tell what clients are up to date and which are behind.
             this.sockets.forEach(socket => {io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, messageString);});

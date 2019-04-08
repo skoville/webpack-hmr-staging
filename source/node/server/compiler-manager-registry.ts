@@ -1,5 +1,6 @@
 import {CompilerManager} from './compiler-manager';
 import {ReadStream} from 'fs';
+import webpack = require('webpack');
 
 type MessageSubscriber = (id: string, message: string) => void;
 
@@ -8,9 +9,12 @@ export class CompilerManagerRegistry {
     private static readonly registry: Record<string, CompilerManager> = {};
     private static readonly registeredIds: string[] = [];
 
-    public static registerPlugin(compilerManager: CompilerManager) {
+    public static registerCompilerManager(compiler: webpack.Compiler) {
         const id = '';
-        this.registry[id] = compilerManager;
+        this.registry[id] = new CompilerManager(compiler, message => {
+            this.messageSubscribers.forEach(async subscriber => {subscriber(id, message);});
+        }, options);
+         = compiler;
     }
 
     public static subscribeToMessages(subscriber: MessageSubscriber) {
