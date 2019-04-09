@@ -10,6 +10,7 @@
     "mime": "^2.4.2",
     "socket.io": "^2.2.0",
     "socket.io-client": "^2.2.0",
+    "uuid": "^3.3.2",
     "webpack": "^4.29.6",
     "yargs": "^13.2.2"
   },
@@ -21,6 +22,7 @@
     "@types/socket.io": "^2.1.2",
     "@types/socket.io-client": "^1.4.32",
     "@types/ts-nameof": "^2.0.0",
+    "@types/uuid": "^3.4.4",
     "@types/webpack": "^4.4.26",
     "@types/webpack-env": "^1.13.7",
     "@types/yargs": "^12.0.10",

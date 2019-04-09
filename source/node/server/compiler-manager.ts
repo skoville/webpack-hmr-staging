@@ -5,21 +5,29 @@ import * as fs from 'fs';
 import {PluginOptions} from './plugin';
 import {MessageType, Message} from '@universal/shared/api-model';
 import { log } from '@node/shared/temp-logger';
+import { Event, EventHandler } from '@universal/shared/event';
+import { v4 as generateUUID } from 'uuid';
 
 const PLUGIN_NAME = "WebpackDevSecOps";
-type MessageHandler = (message:string) => void;
 type FileSystem = typeof fs | MemoryFileSystem;
 
+export interface CompilerManagerMessage {
+    id: string;
+    message: string;
+}
+
 export class CompilerManager {
+    private readonly id: string;
     private readonly compiler: webpack.Compiler;
-    private readonly emitMessage: MessageHandler;
+    private readonly messageEmittingEvent: Event<CompilerManagerMessage>;
     private readonly fs: FileSystem;
 
     private valid: boolean;
     private compilationCallbacks: Function[];
     private latestUpdateMessage: string | null;
 
-    public constructor(compiler: webpack.Compiler, onMessage: MessageHandler, options: PluginOptions) {
+    public constructor(compiler: webpack.Compiler, options: PluginOptions) {
+        this.id = generateUUID();
         if(options.memoryFS) {
             this.fs = new MemoryFileSystem();
             compiler.outputFileSystem = this.fs;
@@ -27,11 +35,19 @@ export class CompilerManager {
             this.fs = fs;
         }
         this.compiler = compiler;
-        this.emitMessage = onMessage;
+        this.messageEmittingEvent = new Event<CompilerManagerMessage>(async () => {});
         this.valid = false;
         this.compilationCallbacks = [];
         this.latestUpdateMessage = null;
         this.addHooks();
+    }
+
+    public getId() {
+        return this.id;
+    }
+
+    public subscribeToMessages(eventHandler: EventHandler<CompilerManagerMessage>) {
+        return this.messageEmittingEvent.subscribeMiddleware(eventHandler);
     }
 
     public getLatestUpdateMessage(): string | null {
@@ -150,7 +166,10 @@ export class CompilerManager {
         if(message.type === MessageType.Update) {
             this.latestUpdateMessage = messageString;
         }
-        this.emitMessage(messageString);
+        this.messageEmittingEvent.publish({
+            id: this.id,
+            message: messageString
+        });
     }
 
     private invalidate() {
