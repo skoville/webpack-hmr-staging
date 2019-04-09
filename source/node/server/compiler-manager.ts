@@ -11,15 +11,10 @@ import { v4 as generateUUID } from 'uuid';
 const PLUGIN_NAME = "WebpackDevSecOps";
 type FileSystem = typeof fs | MemoryFileSystem;
 
-export interface CompilerManagerMessage {
-    id: string;
-    message: string;
-}
-
 export class CompilerManager {
     private readonly id: string;
     private readonly compiler: webpack.Compiler;
-    private readonly messageEmittingEvent: Event<CompilerManagerMessage>;
+    private readonly messageEmittingEvent: Event<string>;
     private readonly fs: FileSystem;
 
     private valid: boolean;
@@ -35,7 +30,7 @@ export class CompilerManager {
             this.fs = fs;
         }
         this.compiler = compiler;
-        this.messageEmittingEvent = new Event<CompilerManagerMessage>(async () => {});
+        this.messageEmittingEvent = new Event<string>(async () => {});
         this.valid = false;
         this.compilationCallbacks = [];
         this.latestUpdateMessage = null;
@@ -46,12 +41,16 @@ export class CompilerManager {
         return this.id;
     }
 
-    public subscribeToMessages(eventHandler: EventHandler<CompilerManagerMessage>) {
-        return this.messageEmittingEvent.subscribeMiddleware(eventHandler);
-    }
-
-    public getLatestUpdateMessage(): string | null {
-        return this.latestUpdateMessage;
+    public subscribeToMessages(eventHandler: EventHandler<string>) {
+        // TODO: it's probably not necessary to subscribe before sending the latest update message since Node.js is a single-threaded environment.
+        const unsubFunction = this.messageEmittingEvent.subscribeMiddleware(eventHandler);
+        if (this.latestUpdateMessage !== null) {
+            // This allows the client to be updated to the latest bundle in the case where there is a bundle update between the
+            // time that the client loads the bundle js file and the time that the loaded bundle in the client first makes contact
+            // with the server.
+            eventHandler(this.latestUpdateMessage);
+        }
+        return unsubFunction;
     }
 
     public async getReadStream(requestPath: string) {
@@ -166,10 +165,7 @@ export class CompilerManager {
         if(message.type === MessageType.Update) {
             this.latestUpdateMessage = messageString;
         }
-        this.messageEmittingEvent.publish({
-            id: this.id,
-            message: messageString
-        });
+        this.messageEmittingEvent.publish(messageString);
     }
 
     private invalidate() {

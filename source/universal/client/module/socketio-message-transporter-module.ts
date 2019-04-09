@@ -8,7 +8,7 @@ export class SocketIOClientMessageTransporter extends AbstractClientMessageTrans
     
     public constructor() {
         super();
-        this.socket = socketio(this.url);
+        this.socket = socketio(`${this.url}?${nameof(BUNDLE_ID)}=${BUNDLE_ID}`);
         this.socket.on(SOCKET_MESSAGE_EVENT_NAME, (message: string) => {
             this.log.info("received message");
             this.log.info(message);
@@ -18,7 +18,7 @@ export class SocketIOClientMessageTransporter extends AbstractClientMessageTrans
         const socketioErrors = ['connect_error', 'connect_timeout', 'error', 'disconnect', 'reconnect_error', 'reconnect_failed'];
         socketioErrors.forEach(error => {
             this.socket.on(error, (...args: any[]) => {
-                this.log.info("connection error: " + error + ", arguments: " + args);
+                this.log.error("connection error: " + error + ", arguments: " + args);
             })
         });
     }
