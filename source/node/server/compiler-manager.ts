@@ -7,8 +7,8 @@ import {MessageType, Message} from '@universal/shared/api-model';
 import { log } from '@node/shared/temp-logger';
 import { Event, EventHandler } from '@universal/shared/event';
 import { v4 as generateUUID } from 'uuid';
+import { TOOL_NAME } from '@universal/shared/tool-name';
 
-const PLUGIN_NAME = "WebpackDevSecOps";
 type FileSystem = typeof fs | MemoryFileSystem;
 
 export class CompilerManager {
@@ -100,11 +100,11 @@ export class CompilerManager {
     }
 
     private addHooks() {
-        this.compiler.hooks.compile.tap(PLUGIN_NAME, () => {console.log("inner compile hook");this.sendMessage({type:MessageType.Recompiling});});
-        this.compiler.hooks.invalid.tap(PLUGIN_NAME, () => {console.log("inner invalid hook");this.invalidate();this.sendMessage({type:MessageType.Recompiling});});
-        this.compiler.hooks.run.tap(PLUGIN_NAME, () => {console.log("inner run hook");this.invalidate()});
-        this.compiler.hooks.watchRun.tap(PLUGIN_NAME, () => {console.log("inner watchRun hook");this.invalidate()});
-        this.compiler.hooks.done.tap(PLUGIN_NAME, stats => {
+        this.compiler.hooks.compile.tap(TOOL_NAME, () => {console.log("inner compile hook");this.sendMessage({type:MessageType.Recompiling});});
+        this.compiler.hooks.invalid.tap(TOOL_NAME, () => {console.log("inner invalid hook");this.invalidate();this.sendMessage({type:MessageType.Recompiling});});
+        this.compiler.hooks.run.tap(TOOL_NAME, () => {console.log("inner run hook");this.invalidate()});
+        this.compiler.hooks.watchRun.tap(TOOL_NAME, () => {console.log("inner watchRun hook");this.invalidate()});
+        this.compiler.hooks.done.tap(TOOL_NAME, stats => {
             const {compilation} = stats;
             if(compilation.errors.length === 0 && Object.values(compilation.assets).every(asset => !(asset as any).emitted)) {
                 this.sendMessage({type:MessageType.NoChange});

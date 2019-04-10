@@ -11,26 +11,37 @@ export class NodeServer {
 
     public constructor(port: number) {
         const app = express();
-        // TODO: we need to figure out how a browser webpack client is made aware of the url. We need to find a way to add in the bundleId to that.
-        // This is simple to do for the node client because in that case we own the get requests, but for the web client webpack does those automatically.
         app.get("*", async (req, res, next) => {
             try {
+                const path = req.path === '/' ? '/index.html' : req.path;
+                const mimeType = mime.getType(path);
+                if (mimeType == null) {
+                    throw new Error(`unable to resolve mime type for resource at '${req.path}'`);
+                }
+                res.setHeader("Content-Type", mimeType);
+
+                // Ideally we would be able to get the bundle id from the header of the get request, but we don't really have control over the get
+                // requests being sent by webpack hot module replacement plugin. Therefore, the bottom code doesn't work.
+                // TODO: find a way either to modify webpack's HMR behavior or to replace the plugin entirely so we can add the bundle id to the 
+                // header of GET requests made to the header. Also add bundle id to header of GET requests of node HMR client, but this is easier
+                // since we are currently controlling this portion.
+                /**
                 const bundleId = req.header(nameof(BUNDLE_ID));
                 if (bundleId === undefined) {
                     throw new Error(`Request is missing '${nameof(BUNDLE_ID)}' header. Cannot complete request`);
                 }
                 console.log(`NEW GET REQUEST. ${nameof(bundleId)} = ${bundleId}`);
                 const compilerManager = CompilerManagerRegistry.getCompilerManager(bundleId);
-                const path = req.path === '/' ? '/index.html' : req.path;
                 const stream = await compilerManager.getReadStream(path);
                 if(stream === false) {
                     throw new Error(`The compiler manager does not have any file stored at path '${req.path}'`);
                 }
-                const mimeType = mime.getType(path);
-                if (mimeType == null) {
-                    throw new Error(`unable to resolve mime type for resource at '${req.path}'`);
-                }
-                res.setHeader("Content-Type", mimeType);
+                */
+
+                // For now we have to do it this way.
+                const stream = await CompilerManagerRegistry.getReadStream(path);
+
+                // Keep the following line in either case, because either way we must pipe the stream to the response.
                 stream.pipe(res);
             } catch(e) {
                 // TODO: log.error(e.message); once logging is hooked up.
