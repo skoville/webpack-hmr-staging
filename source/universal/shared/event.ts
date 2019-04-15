@@ -1,6 +1,6 @@
 type UnsubscribeFunction = () => void;
-export type EventHandler<EventPayload> = (eventPayload: EventPayload) => Promise<void>;
-export class Event<EventPayload> {
+export type EventHandler<EventPayload, EventResponse> = (eventPayload: EventPayload) => Promise<EventResponse>;
+export class Event<EventPayload, EventResponse> {
     private readonly sortedSubscriptionIds: number[];
     private readonly subscribers: Record<number, EventHandler<EventPayload>>;
     private readonly onAfterMiddleware: EventHandler<EventPayload>;

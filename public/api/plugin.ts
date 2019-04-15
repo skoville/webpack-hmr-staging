@@ -1,0 +1,1 @@
+export {Plugin as ScovilleWebpackPlugin} from '@node/server/plugin';
