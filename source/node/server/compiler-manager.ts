@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import {PluginOptions} from './plugin';
 import {MessageType, Message} from '@universal/shared/api-model';
 import { log } from '@node/shared/temp-logger';
-import { Event, EventHandler } from '@universal/shared/event';
+import { Command, CommandExecutor } from '@universal/shared/command';
 import { v4 as generateUUID } from 'uuid';
 import { TOOL_NAME } from '@universal/shared/tool-name';
 
@@ -14,7 +14,7 @@ type FileSystem = typeof fs | MemoryFileSystem;
 export class CompilerManager {
     private readonly id: string;
     private readonly compiler: webpack.Compiler;
-    private readonly messageEmittingEvent: Event<string>;
+    private readonly messageEmittingEvent: Command<string>;
     private readonly fs: FileSystem;
 
     private valid: boolean;
@@ -30,7 +30,7 @@ export class CompilerManager {
             this.fs = fs;
         }
         this.compiler = compiler;
-        this.messageEmittingEvent = new Event<string>(async () => {});
+        this.messageEmittingEvent = new Command<string>(async () => {});
         this.valid = false;
         this.compilationCallbacks = [];
         this.latestUpdateMessage = null;
@@ -41,7 +41,7 @@ export class CompilerManager {
         return this.id;
     }
 
-    public subscribeToMessages(eventHandler: EventHandler<string>) {
+    public subscribeToMessages(eventHandler: CommandExecutor<string>) {
         // TODO: it's probably not necessary to subscribe before sending the latest update message since Node.js is a single-threaded environment.
         const unsubFunction = this.messageEmittingEvent.subscribeMiddleware(eventHandler);
         if (this.latestUpdateMessage !== null) {

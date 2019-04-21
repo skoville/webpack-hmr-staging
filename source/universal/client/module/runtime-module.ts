@@ -2,19 +2,23 @@
 
 import { MessageType, Message } from '@universal/shared/api-model';
 import { ClientEvent } from '../event';
-import { AbstractModuleRegistry } from '@universal/shared/abstract/module-registry';
 import { AbstractClientModule } from './abstract/module';
 import { Log } from '@universal/shared/log';
 import { injectedClientConfiguration } from '../injected-client-configuration';
 
-export class ClientRuntime extends AbstractClientModule {
+export class ClientRuntime extends AbstractClientModule<[typeof ClientEvent.HandleMessage], [typeof ClientEvent.RestartApplication]> {
+
     private currentHash?: string;
     private readonly hotEnabled: boolean;
     private readonly restartingEnabled: boolean;
     private readonly hotSwappingRuntime?: HotSwapRuntime;
 
     public constructor() {
-        super("[SWP] ");
+        super({
+            [ClientEvent.HandleMessage]: async message => {
+                this.handleMessage(message);
+            }
+        }, "[SWP] ");
         const { enableHotModuleReloading, enableApplicationRestarting } = injectedClientConfiguration;
         this.hotEnabled = enableHotModuleReloading;
         this.restartingEnabled = enableApplicationRestarting;
@@ -26,13 +30,10 @@ export class ClientRuntime extends AbstractClientModule {
         }
     }
 
-    @AbstractModuleRegistry.EventTrigger
-    private async [ClientEvent.RestartApplication]() {}
-
     public async startOrPromptAppRestart() {
         if(this.restartingEnabled) {
             this.log.info("Restarting...");
-            await this[ClientEvent.RestartApplication]();
+            await this.excuteCommand(ClientEvent.RestartApplication, undefined);
         } else {
             this.log.error("Manual Restart required.");
         }

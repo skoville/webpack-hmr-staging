@@ -1,12 +1,12 @@
 import { PubSub } from "./pubsub";
 
 type UnsubscribeFunction = () => void;
-type PreExecutionSubscriber<Payload> = (payload: Payload) => Promise<void>;
+export type CommandPreExecutionSubscriber<Payload> = (payload: Payload) => Promise<void>;
 type PostExecutionContext<Payload, Result> = {
     payload: Payload;
     result: Result;
 };
-type PostExecutionSubscriber<Payload, Result> = (context: PostExecutionContext<Payload, Result>) => Promise<void>;
+export type CommandPostExecutionSubscriber<Payload, Result> = (context: PostExecutionContext<Payload, Result>) => Promise<void>;
 
 export type CommandExecutor<Payload, Result> = (payload: Payload) => Promise<Result>;
 export class Command<Payload, Result> {
@@ -27,11 +27,11 @@ export class Command<Payload, Result> {
         return result;
     }
 
-    public subscribePreExecutionMiddleware(preExecutionSubscriber: PreExecutionSubscriber<Payload>): UnsubscribeFunction {
+    public subscribePreExecutionMiddleware(preExecutionSubscriber: CommandPreExecutionSubscriber<Payload>): UnsubscribeFunction {
         return this.preExecutionSubscribers.subscribe(preExecutionSubscriber);
     }
 
-    public subscribePostExecutionMiddleware(postExecutionSubscriber: PostExecutionSubscriber<Payload, Result>): UnsubscribeFunction {
+    public subscribePostExecutionMiddleware(postExecutionSubscriber: CommandPostExecutionSubscriber<Payload, Result>): UnsubscribeFunction {
         return this.postExecutionSubscribers.subscribe(postExecutionSubscriber);
     }
 }

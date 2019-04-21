@@ -1,3 +1,64 @@
-import { AbstractModuleRegistry } from "./module-registry";
+import { CommandExecutor, Command, CommandPreExecutionSubscriber, CommandPostExecutionSubscriber } from "../command";
+import { SelfResolvingConstruct } from "../self-resolving-construct";
 
-export abstract class AbstractModule<EventPayloadMap> extends AbstractModuleRegistry.Module<EventPayloadMap> {}
+type PayloadResultTuple = [any, any];
+type CommandTypes<T extends {[CommandIdentifier in keyof T]: PayloadResultTuple}> = {[CommandIdentifier in keyof T]: PayloadResultTuple};
+type CommandPayload<T extends CommandTypes<T>, CommandIdentifier extends keyof T> = T[CommandIdentifier][0];
+type CommandResult<T extends CommandTypes<T>, CommandIdentifier extends keyof T> = T[CommandIdentifier][1];
+type CommandByTypes<T extends CommandTypes<T>, CommandIdentifier extends keyof T> = Command<CommandPayload<T, CommandIdentifier>, CommandResult<T, CommandIdentifier>>;
+
+export type CommandExecutorImplementations<T extends CommandTypes<T>, CommandsToImplement extends (keyof T)[]> = {[C in CommandsToImplement[number]]: CommandExecutor<CommandPayload<T, C>, CommandResult<T, C>>};
+
+export abstract class AbstractModule<T extends CommandTypes<T>, HandledCommands extends (keyof T)[], IssuableCommands extends (keyof T)[]> {
+    // Contains resolvers for all the commands. This is necessary so each module has access to execute any command that it needs to.
+    private readonly commandsPromise = new SelfResolvingConstruct<{[CommandIdentifier in keyof T]: CommandByTypes<T, CommandIdentifier>}>(
+        undefined,
+        `Detected attempt to register same module to multiple registries. A module instance may only belong to one registry instance.`
+    );
+
+    protected constructor(private readonly executors: CommandExecutorImplementations<T, HandledCommands>) {}
+
+    protected async excuteCommand<CommandIdentifier extends IssuableCommands[number]>(commandId: CommandIdentifier,
+        payload: CommandPayload<T, CommandIdentifier>) {
+        // Is the below statement type-safe? Seems to be, but unsure because I can put any value into payload without trouble.
+        return (await this.commandsPromise.value())[commandId].execute(payload);
+    }
+
+    protected async subscribePreExecutionMiddleware<CommandIdentifier extends keyof T>(commandIdentifier: CommandIdentifier,
+        subsriber: CommandPreExecutionSubscriber<CommandPayload<T, CommandIdentifier>>) {
+        return (await this.commandsPromise.value())[commandIdentifier].subscribePreExecutionMiddleware(subsriber);
+    }
+
+    protected async subscribePostExecutionMiddleware<CommandIdentifier extends keyof T>(commandIdentifier: CommandIdentifier,
+        subscriber: CommandPostExecutionSubscriber<CommandPayload<T, CommandIdentifier>, CommandResult<T, CommandIdentifier>>) {
+        return (await this.commandsPromise.value())[commandIdentifier].subscribePostExecutionMiddleware(subscriber);
+    }
+
+    public static readonly Registry = class Registry<T extends CommandTypes<T>> {
+        private readonly commands: {[CommandIdentifier in keyof T]: CommandByTypes<T, CommandIdentifier>};
+
+        protected constructor(modulesContainingExecutors: {[CommandIdentifier in keyof T]: AbstractModule<T, [CommandIdentifier], (keyof T)[]>}) {
+            // We wouldn't need to use this any cast if there was a clean, type-safe way to map objects similarly to how we can map an array of one type to an array of another type.
+            this.commands = {} as any;
+            for(const commandIdentifier in modulesContainingExecutors) {
+                const moduleContainingExecutors = modulesContainingExecutors[commandIdentifier];
+                this.commands[commandIdentifier] = new Command(moduleContainingExecutors.executors[commandIdentifier]);
+            }
+            // Now that the commands has been populated, we can pass this command mapping to the various modules for consumption.
+            for(const commandIdentifier in modulesContainingExecutors) {
+                const currentModule = modulesContainingExecutors[commandIdentifier];
+                currentModule.commandsPromise.resolve(this.commands);
+            }
+        }
+
+        public subscribePreExecutionMiddleware<CommandIdentifier extends keyof T>(commandIdentifier: CommandIdentifier,
+            subscriber: CommandPreExecutionSubscriber<CommandPayload<T, CommandIdentifier>>) {
+            return this.commands[commandIdentifier].subscribePreExecutionMiddleware(subscriber);
+        }
+
+        public subscribePostExecutionMiddleware<CommandIdentifier extends keyof T>(commandIdentifier: CommandIdentifier,
+            subscriber: CommandPostExecutionSubscriber<CommandPayload<T, CommandIdentifier>, CommandResult<T, CommandIdentifier>>) {
+            return this.commands[commandIdentifier].subscribePostExecutionMiddleware(subscriber);
+        }
+    }
+}

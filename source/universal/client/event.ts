@@ -10,9 +10,9 @@ export namespace ClientEvent {
     // Map each possible event to a corresponding event payload.
     // An event payload is the data required to handle an event.
     export interface Payload {
-        [RestartApplication]: void;
-        [HandleMessage]: Message;
-        [SendMessage]: string;
-        [Log]: Log.Request;
+        [RestartApplication]: [void, void];
+        [HandleMessage]: [Message, void];
+        [SendMessage]: [string, void];
+        [Log]: [Log.Request, void];
     }
 }
