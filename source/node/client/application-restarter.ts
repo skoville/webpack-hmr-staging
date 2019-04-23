@@ -1,8 +1,8 @@
 import { AbstractClientApplicationRestarterModule } from "@universal/client/module/abstract/application-restarter-module";
-import { MessageType } from "@universal/shared/api-model";
+import { CompilerNotification } from "@universal/shared/api-model";
 import { BundleRunnerToClientMessageType, BundleRunnerToClientMessage } from "@node/shared/apis/bundle-runner-to-client-message";
 import { ClientToBundleRunnerMessage, ClientToBundleRunnerMessageType } from "@node/shared/apis/client-to-bundle-runner-message";
-import { ClientEvent } from "@universal/client/event";
+import { ClientCommand } from "@universal/client/command-types";
 
 // TODO: some of the logic in here seems unrelated to restarting the application.
 // I think we need to change it from ApplicationRestarter to something along the
@@ -28,8 +28,8 @@ export class NodeClientApplicationRestarter extends AbstractClientApplicationRes
         // download the HMR assets (update.json and updated js files) before the HMR runtime tries to load them.
         // We must do this because HMR in node assumes the assets are locally stored, unlike HMR in the web which knows how
         // to download the update files.
-        this.subscribeMiddleware(ClientEvent.HandleMessage, async message => {
-            if(message.type === MessageType.Update) {
+        this.subscribePreExecutionMiddleware(ClientCommand.HandleMessage, async message => {
+            if(message.type === CompilerNotification.Type.Update) {
                 await new Promise(resolve => {
                     const sequenceNumber = this.allocatedSequenceNumbers;
                     this.allocatedSequenceNumbers++;

@@ -1,12 +1,12 @@
 /*globals __webpack_hash__*/
 
-import { MessageType, Message } from '@universal/shared/api-model';
-import { ClientEvent } from '../event';
+import { CompilerNotification} from '@universal/shared/api-model';
+import { ClientCommand } from '../command-types';
 import { AbstractClientModule } from './abstract/module';
 import { Log } from '@universal/shared/log';
 import { injectedClientConfiguration } from '../injected-client-configuration';
 
-export class ClientRuntime extends AbstractClientModule<[typeof ClientEvent.HandleMessage], [typeof ClientEvent.RestartApplication]> {
+export class ClientRuntime extends AbstractClientModule<[typeof ClientCommand.HandleMessage], [typeof ClientCommand.RestartApplication]> {
 
     private currentHash?: string;
     private readonly hotEnabled: boolean;
@@ -15,9 +15,7 @@ export class ClientRuntime extends AbstractClientModule<[typeof ClientEvent.Hand
 
     public constructor() {
         super({
-            [ClientEvent.HandleMessage]: async message => {
-                this.handleMessage(message);
-            }
+            [ClientCommand.HandleMessage]: message => this.handleMessage(message)
         }, "[SWP] ");
         const { enableHotModuleReloading, enableApplicationRestarting } = injectedClientConfiguration;
         this.hotEnabled = enableHotModuleReloading;
@@ -33,21 +31,21 @@ export class ClientRuntime extends AbstractClientModule<[typeof ClientEvent.Hand
     public async startOrPromptAppRestart() {
         if(this.restartingEnabled) {
             this.log.info("Restarting...");
-            await this.excuteCommand(ClientEvent.RestartApplication, undefined);
+            await this.excuteCommand(ClientCommand.RestartApplication, undefined);
         } else {
             this.log.error("Manual Restart required.");
         }
     }
 
-    public async handleMessage(message: Message) {
+    public async handleMessage(message: CompilerNotification.Body) {
         switch(message.type) {
-            case MessageType.NoChange:
+            case CompilerNotification.Type.NoChange:
                 this.log.info('Nothing changed.');
                 break;
-            case MessageType.Recompiling:
+            case CompilerNotification.Type.Recompiling:
                 this.log.info('Source changed. Recompiling...');
                 break;
-            case MessageType.Update:
+            case CompilerNotification.Type.Update:
                 const firstHash = !this.currentHash;
                 this.currentHash = message.data.hash;
                 if(message.data.errors.length > 0) {
@@ -63,7 +61,7 @@ export class ClientRuntime extends AbstractClientModule<[typeof ClientEvent.Hand
                 break;
             // I don't currently have the server sending this for any reason.
             // It could be used by others trying to extend the functionality themselves.
-            case MessageType.ForceRestart:
+            case CompilerNotification.Type.ForceRestart:
                 this.log.info(`"${message.data.reason}". App Restarting...`);
                 this.startOrPromptAppRestart();
                 break;

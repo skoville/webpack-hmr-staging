@@ -2,10 +2,17 @@ import {TOOL_NAME} from './tool-name';
 
 export const SOCKET_MESSAGE_EVENT_NAME = `${TOOL_NAME.toLowerCase()}-message`;
 
-export type Message = 
-    {   type: MessageType.Recompiling } |
-    {   type: MessageType.NoChange } |
-    {   type: MessageType.Update;
+export namespace CompilerNotification {
+    export enum Type {
+        Recompiling = 'recompiling',
+        NoChange = 'no-change',
+        Update = 'update',
+        ForceRestart = 'force-restart'
+    }
+    export type Body =
+    {   type: Type.Recompiling } |
+    {   type: Type.NoChange } |
+    {   type: Type.Update;
         data: {
             hash: string;
             errors: string[];
@@ -14,15 +21,9 @@ export type Message =
             assets: string[];
         }
     } |
-    {   type: MessageType.ForceRestart;
+    {   type: Type.ForceRestart;
         data: {
             reason: string;
         }
     };
-
-export enum MessageType {
-    Recompiling = 'recompiling',
-    NoChange = 'no-change',
-    Update = 'update',
-    ForceRestart = 'force-restart'
 }

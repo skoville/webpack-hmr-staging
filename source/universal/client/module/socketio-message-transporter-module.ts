@@ -1,7 +1,7 @@
 import { AbstractClientMessageTransporterModule } from "./abstract/message-transporter-module";
 import * as socketio from 'socket.io-client';
-import { SOCKET_MESSAGE_EVENT_NAME, Message } from "@universal/shared/api-model";
-import { ClientEvent } from "../event";
+import { SOCKET_MESSAGE_EVENT_NAME } from "@universal/shared/api-model";
+import { ClientCommand } from "../command-types";
 
 export class SocketIOClientMessageTransporter extends AbstractClientMessageTransporterModule {
     private socket: typeof socketio.Socket;
@@ -12,8 +12,7 @@ export class SocketIOClientMessageTransporter extends AbstractClientMessageTrans
         this.socket.on(SOCKET_MESSAGE_EVENT_NAME, (messageString: string) => {
             this.log.info("received message");
             this.log.info(messageString);
-            const message: Message = JSON.parse(messageString);
-            this.excuteCommand(ClientEvent.HandleMessage, message);
+            this.excuteCommand(ClientCommand.HandleMessage, JSON.parse(messageString));
         });
         // TODO: refactor.
         const socketioErrors = ['connect_error', 'connect_timeout', 'error', 'disconnect', 'reconnect_error', 'reconnect_failed'];

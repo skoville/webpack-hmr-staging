@@ -1,12 +1,10 @@
 import { AbstractClientModule } from "./module";
-import { ClientEvent } from "@universal/client/event";
-export abstract class AbstractClientApplicationRestarterModule extends AbstractClientModule<[typeof ClientEvent.RestartApplication], []> {
+import { ClientCommand } from "@universal/client/command-types";
+export abstract class AbstractClientApplicationRestarterModule extends AbstractClientModule<[typeof ClientCommand.RestartApplication], []> {
     protected constructor() {
         super({
-            [ClientEvent.RestartApplication]: async () => {
-                await this.restartApplication();
-            }
+            [ClientCommand.RestartApplication]: () => this.restartApplication()
         })
     }
-    public abstract async restartApplication(): Promise<void>;
+    protected abstract async restartApplication(): Promise<void>;
 }

@@ -15,6 +15,7 @@ export class PubSub<T> {
             if (!this.subscribers.has(subscriber)) {
                 throw new Error(`Trying to unsubscribe a ${this.subscriberTypeName} that is not subscribed.`);
             }
+            this.subscribers.delete(subscriber);
         }
     }
     public async publish(value: T) {

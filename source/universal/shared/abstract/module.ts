@@ -38,17 +38,23 @@ export abstract class AbstractModule<T extends CommandTypes<T>, HandledCommands 
         private readonly commands: {[CommandIdentifier in keyof T]: CommandByTypes<T, CommandIdentifier>};
 
         protected constructor(modulesContainingExecutors: {[CommandIdentifier in keyof T]: AbstractModule<T, [CommandIdentifier], (keyof T)[]>}) {
+            // The any here should be fine, because it doesn't matter what the handled commands or issuable commands are when gettting a set of modules to resolve the total command set for.
+            const moduleSet = new Set<AbstractModule<T, any, (keyof T)[]>>();
+
             // We wouldn't need to use this any cast if there was a clean, type-safe way to map objects similarly to how we can map an array of one type to an array of another type.
             this.commands = {} as any;
             for(const commandIdentifier in modulesContainingExecutors) {
                 const moduleContainingExecutors = modulesContainingExecutors[commandIdentifier];
                 this.commands[commandIdentifier] = new Command(moduleContainingExecutors.executors[commandIdentifier]);
+                // This is necessary because sometimes the same module handles the execution of more than one command,
+                // so by adding to a set we end up with an iterable of unique modules (no repeats).
+                moduleSet.add(moduleContainingExecutors)
             }
             // Now that the commands has been populated, we can pass this command mapping to the various modules for consumption.
-            for(const commandIdentifier in modulesContainingExecutors) {
-                const currentModule = modulesContainingExecutors[commandIdentifier];
-                currentModule.commandsPromise.resolve(this.commands);
-            }
+            Array.from(moduleSet.values())
+                .forEach(uniqueModule => {
+                    uniqueModule.commandsPromise.resolve(this.commands);
+                });
         }
 
         public subscribePreExecutionMiddleware<CommandIdentifier extends keyof T>(commandIdentifier: CommandIdentifier,

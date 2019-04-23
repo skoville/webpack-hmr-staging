@@ -2,17 +2,15 @@ import * as webpack from 'webpack';
 import MemoryFileSystem = require('memory-fs');
 import * as path from 'path';
 import * as fs from 'fs';
-import {PluginOptions} from './plugin';
-import {MessageType, Message} from '@universal/shared/api-model';
+import {CompilerNotification} from '@universal/shared/api-model';
 import { log } from '@node/shared/temp-logger';
 import { Command, CommandExecutor } from '@universal/shared/command';
-import { v4 as generateUUID } from 'uuid';
 import { TOOL_NAME } from '@universal/shared/tool-name';
+import { AbstractFileStream } from '@universal/server/abstract-file-stream';
 
 type FileSystem = typeof fs | MemoryFileSystem;
 
 export class CompilerManager {
-    private readonly id: string;
     private readonly compiler: webpack.Compiler;
     private readonly messageEmittingEvent: Command<string>;
     private readonly fs: FileSystem;
@@ -21,9 +19,8 @@ export class CompilerManager {
     private compilationCallbacks: Function[];
     private latestUpdateMessage: string | null;
 
-    public constructor(compiler: webpack.Compiler, options: PluginOptions) {
-        this.id = generateUUID();
-        if(options.memoryFS) {
+    public constructor(compiler: webpack.Compiler, memoryFS: boolean) {
+        if(memoryFS) {
             this.fs = new MemoryFileSystem();
             compiler.outputFileSystem = this.fs;
         } else {
@@ -35,10 +32,6 @@ export class CompilerManager {
         this.compilationCallbacks = [];
         this.latestUpdateMessage = null;
         this.addHooks();
-    }
-
-    public getId() {
-        return this.id;
     }
 
     public subscribeToMessages(eventHandler: CommandExecutor<string>) {
@@ -53,7 +46,7 @@ export class CompilerManager {
         return unsubFunction;
     }
 
-    public async getReadStream(requestPath: string) {
+    public async getReadStream(requestPath: string): Promise<AbstractFileStream|false> {
         const fsPath = this.getFsPathFromRequestPath(requestPath);
         if(!fsPath) return false;
         // Don't stream the file until compilation is done.
@@ -100,14 +93,14 @@ export class CompilerManager {
     }
 
     private addHooks() {
-        this.compiler.hooks.compile.tap(TOOL_NAME, () => {console.log("inner compile hook");this.sendMessage({type:MessageType.Recompiling});});
-        this.compiler.hooks.invalid.tap(TOOL_NAME, () => {console.log("inner invalid hook");this.invalidate();this.sendMessage({type:MessageType.Recompiling});});
+        this.compiler.hooks.compile.tap(TOOL_NAME, () => {console.log("inner compile hook");this.sendMessage({type:CompilerNotification.Type.Recompiling});});
+        this.compiler.hooks.invalid.tap(TOOL_NAME, () => {console.log("inner invalid hook");this.invalidate();this.sendMessage({type:CompilerNotification.Type.Recompiling});});
         this.compiler.hooks.run.tap(TOOL_NAME, () => {console.log("inner run hook");this.invalidate()});
         this.compiler.hooks.watchRun.tap(TOOL_NAME, () => {console.log("inner watchRun hook");this.invalidate()});
         this.compiler.hooks.done.tap(TOOL_NAME, stats => {
             const {compilation} = stats;
             if(compilation.errors.length === 0 && Object.values(compilation.assets).every(asset => !(asset as any).emitted)) {
-                this.sendMessage({type:MessageType.NoChange});
+                this.sendMessage({type:CompilerNotification.Type.NoChange});
             } else {
                 this.sendUpdateMessage(stats);
             }
@@ -147,8 +140,8 @@ export class CompilerManager {
         if (stats.hash === undefined) {
             throw new Error("hash is undefined for webpack.Stats");
         }
-        const updateMessage: Message = {
-            type: MessageType.Update,
+        const updateMessage: CompilerNotification.Body = {
+            type: CompilerNotification.Type.Update,
             data: {
                 hash: stats.hash,
                 publicPath: this.publicPath,
@@ -160,9 +153,9 @@ export class CompilerManager {
         this.sendMessage(updateMessage);
     }
 
-    private sendMessage(message:Message) {
+    private sendMessage(message:CompilerNotification.Body) {
         const messageString = JSON.stringify(message);
-        if(message.type === MessageType.Update) {
+        if(message.type === CompilerNotification.Type.Update) {
             this.latestUpdateMessage = messageString;
         }
         this.messageEmittingEvent.publish(messageString);

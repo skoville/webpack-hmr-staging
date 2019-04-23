@@ -1,15 +1,14 @@
 import { AbstractClientModule } from "./module";
-import { ClientEvent } from "../../event";
+import { ClientCommand } from "../../command-types";
 import { injectedClientConfiguration } from "../../injected-client-configuration";
 
-export abstract class AbstractClientMessageTransporterModule extends AbstractClientModule<[typeof ClientEvent.SendMessage], [typeof ClientEvent.HandleMessage]> {
+export abstract class AbstractClientMessageTransporterModule extends AbstractClientModule<[typeof ClientCommand.SendMessage], [typeof ClientCommand.HandleMessage]> {
     protected readonly url = injectedClientConfiguration.url;
+    protected readonly bundleId = BUNDLE_ID;
     protected constructor() {
         super({
-            [ClientEvent.SendMessage]: async message => {
-                await this.sendMessage(message);
-            }
+            [ClientCommand.SendMessage]: message => this.sendMessage(message)
         });
     }
-    public abstract async sendMessage(messageString: string): Promise<void>;
+    protected abstract async sendMessage(messageString: string): Promise<void>;
 }

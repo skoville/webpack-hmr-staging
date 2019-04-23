@@ -1,15 +1,17 @@
-import {CompilerManagerRegistry} from './compiler-manager-registry';
+import {NodeCompilerManagerRegistry} from './compiler-manager-module';
 import * as express from 'express';
 import * as mime from 'mime';
 import * as http from 'http';
 import * as socketio from 'socket.io';
-import {SOCKET_MESSAGE_EVENT_NAME} from '@universal/shared/api-model';
+import {SOCKET_MESSAGE_EVENT_NAME, CompilerNotification} from '@universal/shared/api-model';
+import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/server-boundary-module';
 
-export class NodeServer {
+export class DefaultNodeServerBoundary extends AbstractServerBoundaryModule {
     private server: http.Server;
     private sockets: socketio.Socket[];
 
     public constructor(port: number) {
+        super();
         const app = express();
         app.get("*", async (req, res, next) => {
             try {
@@ -39,7 +41,7 @@ export class NodeServer {
                 */
 
                 // For now we have to do it this way.
-                const stream = await CompilerManagerRegistry.getReadStream(path);
+                const stream = await NodeCompilerManagerRegistry.getReadStream(path);
 
                 // Keep the following line in either case, because either way we must pipe the stream to the response.
                 stream.pipe(res);
@@ -55,7 +57,7 @@ export class NodeServer {
         io.on('connection', socket => {
             const bundleId: string = socket.handshake.query[nameof(BUNDLE_ID)];
             console.log(`NEW CONNECTION. ${nameof(bundleId)} = ${bundleId}`);
-            const compilerManager = CompilerManagerRegistry.getCompilerManager(bundleId);
+            const compilerManager = NodeCompilerManagerRegistry.getCompilerManager(bundleId);
 
             const unsubscribeFunction = compilerManager.subscribeToMessages(async message => {
                 // TODO: I wrote the below comment a while ago regarding the same line but in a different context. See if it is still
@@ -85,5 +87,9 @@ export class NodeServer {
         this.server.close(() => {
             cb();
         });
+    }
+
+    protected async handleCompilerNotification(notification: CompilerNotification.Body) {
+        
     }
 }
