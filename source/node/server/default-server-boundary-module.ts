@@ -1,18 +1,31 @@
-import {NodeCompilerManagerRegistry} from './compiler-manager-module';
 import * as express from 'express';
 import * as mime from 'mime';
 import * as http from 'http';
 import * as socketio from 'socket.io';
-import {SOCKET_MESSAGE_EVENT_NAME, CompilerNotification} from '@universal/shared/api-model';
+import { SOCKET_MESSAGE_EVENT_NAME, CompilerNotification } from '@universal/shared/api-model';
 import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/server-boundary-module';
+import { CompilerNotificationPayload, ServerCommand } from '@universal/server/command-types';
+import { NodeFileStream } from '@node/shared/file-stream';
 
 export class DefaultNodeServerBoundary extends AbstractServerBoundaryModule {
-    private server: http.Server;
-    private sockets: socketio.Socket[];
+    private readonly httpServer: http.Server;
+    private readonly ioServer: socketio.Server;
+    private readonly compilerIdToSocketSetMap: Map<string, Set<socketio.Socket>>;
 
     public constructor(port: number) {
         super();
-        const app = express();
+        this.compilerIdToSocketSetMap = new Map();
+        const expressApp = express();
+        this.setUpGETRequestHandling(expressApp);
+        this.httpServer = new http.Server(expressApp);
+        this.ioServer = socketio(this.httpServer);
+        this.setUpWebSocketHandling(this.ioServer);
+        this.httpServer.listen(port, () => {
+            console.log("listening");
+        });
+    }
+
+    private setUpGETRequestHandling(app: express.Express) {
         app.get("*", async (req, res, next) => {
             try {
                 const path = req.path === '/' ? '/index.html' : req.path;
@@ -41,55 +54,66 @@ export class DefaultNodeServerBoundary extends AbstractServerBoundaryModule {
                 */
 
                 // For now we have to do it this way.
-                const stream = await NodeCompilerManagerRegistry.getReadStream(path);
-
-                // Keep the following line in either case, because either way we must pipe the stream to the response.
-                stream.pipe(res);
+                const fileSteam = await this.excuteCommand(ServerCommand.ReadFile, {path});
+                await NodeFileStream.pipe(fileSteam, res);
             } catch(e) {
-                // TODO: log.error(e.message); once logging is hooked up.
-                return next();
+                this.log.error(e.message);
             }
+            return next();
         });
+    }
 
-        this.server = new http.Server(app);
-        const io = socketio(this.server);
-        this.sockets = [];
-        io.on('connection', socket => {
-            const bundleId: string = socket.handshake.query[nameof(BUNDLE_ID)];
-            console.log(`NEW CONNECTION. ${nameof(bundleId)} = ${bundleId}`);
-            const compilerManager = NodeCompilerManagerRegistry.getCompilerManager(bundleId);
+    private setUpWebSocketHandling(io: socketio.Server) {
+        const { compilerIdToSocketSetMap } = this;
+        io.on('connection', async socket => {
+            const compilerId: string = socket.handshake.query[nameof(BUNDLE_ID)];
+            console.log(`NEW CONNECTION. ${nameof(compilerId)} = ${compilerId}`);
+            
+            const associatedSocketSet = compilerIdToSocketSetMap.get(compilerId) || new Set();
+            compilerIdToSocketSetMap.set(compilerId, associatedSocketSet);
 
-            const unsubscribeFunction = compilerManager.subscribeToMessages(async message => {
-                // TODO: I wrote the below comment a while ago regarding the same line but in a different context. See if it is still
-                // needed.
-                // Will want to end up using the socket.io emitted boolean to tell what clients are up to date and which are behind.
-                io.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, message);
-            });
+            associatedSocketSet.add(socket);
 
-            this.sockets.push(socket);
+            const lastCompilerUpdate = await this.excuteCommand(ServerCommand.GetLastCompilerUpdateNotification, compilerId);
+            if (lastCompilerUpdate !== undefined) {
+                this.sendNotification(socket, lastCompilerUpdate);
+            }
+
             socket.on("disconnect", () => {
-                // TODO: check to see if the event's unsub implementation is idempotent, otherwise this could be the source of some errors.
-                unsubscribeFunction();
-                const index = this.sockets.indexOf(socket);
-                if(index !== -1) this.sockets.splice(index, 1);
-                socket.disconnect(true);
+                associatedSocketSet.delete(socket);
+                socket.disconnect(true); // Do we need to do this within a disconnect handler?
             });
-        });
-
-        this.server.listen(port, () => {
-            console.log("listening");
         });
     }
 
     public close(cb: Function) {
-        this.sockets.forEach(socket => socket.disconnect(true));
-        this.sockets = [];
-        this.server.close(() => {
-            cb();
-        });
+        Array.from(this.compilerIdToSocketSetMap.values())
+            .forEach(socketSet => {
+                Array.from(socketSet.values())
+                    .forEach(socket => {
+                        socket.disconnect(true);
+                    });
+                socketSet.clear();
+            });
+        this.compilerIdToSocketSetMap.clear();
+        this.ioServer.close(() => {
+            this.httpServer.close(() => {
+                cb();
+            });
+        })
     }
 
-    protected async handleCompilerNotification(notification: CompilerNotification.Body) {
-        
+    protected async handleCompilerNotification({notification, compilerId}: CompilerNotificationPayload) {
+        const socketSet = this.compilerIdToSocketSetMap.get(compilerId);
+        if (socketSet !== undefined) {
+            Array.from(socketSet.values())
+                .forEach(socket => this.sendNotification(socket, notification));
+        }
+    }
+
+    private sendNotification(socket: socketio.Socket, notification: CompilerNotification.Body) {
+        // TODO: I wrote the below comment a while ago regarding the same line but in a different context. See if it is still needed.
+        // Will want to end up using the socket.io emitted boolean to tell what clients are up to date and which are behind.
+        this.ioServer.to(socket.id).emit(SOCKET_MESSAGE_EVENT_NAME, JSON.stringify(notification));
     }
 }

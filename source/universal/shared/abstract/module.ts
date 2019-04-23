@@ -47,7 +47,8 @@ export abstract class AbstractModule<T extends CommandTypes<T>, HandledCommands 
                 const moduleContainingExecutors = modulesContainingExecutors[commandIdentifier];
                 this.commands[commandIdentifier] = new Command(moduleContainingExecutors.executors[commandIdentifier]);
                 // This is necessary because sometimes the same module handles the execution of more than one command,
-                // so by adding to a set we end up with an iterable of unique modules (no repeats).
+                // so by adding to a set we end up with an iterable of unique modules (no repeats). We don't want repeats because
+                // we don't want to double resolve the set of command executors within a module.
                 moduleSet.add(moduleContainingExecutors)
             }
             // Now that the commands has been populated, we can pass this command mapping to the various modules for consumption.

@@ -1,12 +1,11 @@
 import { AbstractServerModule } from "./module";
-import { ServerCommand } from "@universal/server/command-types";
-import { CompilerNotification } from "@universal/shared/api-model";
+import { ServerCommand, CompilerNotificationPayload } from "@universal/server/command-types";
 
-export abstract class AbstractServerBoundaryModule extends AbstractServerModule<[typeof ServerCommand.CompilerNotification], [typeof ServerCommand.ReadFile]> {
+export abstract class AbstractServerBoundaryModule extends AbstractServerModule<[typeof ServerCommand.CompilerNotification], [typeof ServerCommand.ReadFile, typeof ServerCommand.GetLastCompilerUpdateNotification]> {
     protected constructor() {
         super({
-            [ServerCommand.CompilerNotification]: notification => this.handleCompilerNotification(notification)
+            [ServerCommand.CompilerNotification]: notificationPayload => this.handleCompilerNotification(notificationPayload)
         });
     }
-    protected abstract async handleCompilerNotification(notification: CompilerNotification.Body): Promise<void>
+    protected abstract async handleCompilerNotification(notificationPayload: CompilerNotificationPayload): Promise<void>
 }

@@ -9,7 +9,7 @@ import { promisify } from 'util';
 import { BundleRunnerToClientMessage, BundleRunnerToClientMessageType } from '@node/shared/apis/bundle-runner-to-client-message';
 import { ClientToBundleRunnerMessage, ClientToBundleRunnerMessageType } from '@node/shared/apis/client-to-bundle-runner-message';
 import { TOOL_NAME } from '@universal/shared/tool-name';
-import { log } from '../shared/temp-logger';
+import { log } from './logger';
 
 const existsAsync = promisify(fs.exists);
 const statAsync = promisify(fs.stat);

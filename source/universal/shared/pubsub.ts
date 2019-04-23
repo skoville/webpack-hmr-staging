@@ -1,4 +1,4 @@
-type Subscriber<T> = (publishedValue: T) => Promise<void>;
+export type Subscriber<T> = (publishedValue: T) => Promise<void>;
 export class PubSub<T> {
     private readonly subscribers: Set<Subscriber<T>>;
     private readonly subscriberTypeName: string;
@@ -19,11 +19,7 @@ export class PubSub<T> {
         }
     }
     public async publish(value: T) {
-        const runningSubscriberPromises = Array.from(this.subscribers.entries())
-            .map(setEntry => setEntry[1]) // An entry is a key value pair. In a Map, entries are keys and values of the Map.
-                                          // In a Set, the key and the value of the entry are the same object.
-                                          // In this case I will get the value becuase I feel like it, but either would have been fine.
-                                          // Index 0 = key, index 1 = value.
+        const runningSubscriberPromises = Array.from(this.subscribers.values())
             .map(async subscriber => await subscriber(value));
         await Promise.all(runningSubscriberPromises);
     }

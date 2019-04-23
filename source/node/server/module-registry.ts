@@ -4,6 +4,7 @@ import { v4 as generateUUID } from 'uuid';
 import { AbstractServerModuleRegistry } from '@universal/server/module/abstract/module-registry';
 import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/server-boundary-module';
 import { NodeCompilerManagerRegistry } from './compiler-manager-module';
+import { NodeServerLoggerModule } from './logger-module';
 
 export interface PluginOptions {
     client: IClientConfiguration;
@@ -17,7 +18,7 @@ export class NodeServerModuleRegistry extends AbstractServerModuleRegistry {
         const compilerManager = new NodeCompilerManagerRegistry(memoryFS);
         super(
             compilerManager,
-            null,
+            new NodeServerLoggerModule(),
             serverBoundary
         );
         this.compilerManager = compilerManager;

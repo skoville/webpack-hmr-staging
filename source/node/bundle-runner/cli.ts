@@ -1,6 +1,6 @@
 import * as yargs from 'yargs';
-import {NodeBundleRunner, DownloadingNodeBundleRunner} from './bundle-runner';
-import { log } from '../shared/temp-logger';
+import { NodeBundleRunner, DownloadingNodeBundleRunner } from './bundle-runner';
+import { log } from './logger';
 
 export class CLI {
     public constructor() {

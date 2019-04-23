@@ -3,68 +3,73 @@ import MemoryFileSystem = require('memory-fs');
 import * as path from 'path';
 import * as fs from 'fs';
 import {CompilerNotification} from '@universal/shared/api-model';
-import { log } from '@node/shared/temp-logger';
-import { Command, CommandExecutor } from '@universal/shared/command';
 import { TOOL_NAME } from '@universal/shared/tool-name';
 import { AbstractFileStream } from '@universal/server/abstract-file-stream';
+import { NodeFileStream } from '@node/shared/file-stream';
+import { Log } from '@universal/shared/log';
+import { PubSub, Subscriber } from '@universal/shared/pubsub';
 
 type FileSystem = typeof fs | MemoryFileSystem;
 
 export class CompilerManager {
     private readonly compiler: webpack.Compiler;
-    private readonly messageEmittingEvent: Command<string>;
+    private readonly notifier: PubSub<CompilerNotification.Body>;
     private readonly fs: FileSystem;
+    private readonly log: Log.Logger;
+    private readonly publicPath: string;
 
     private valid: boolean;
     private compilationCallbacks: Function[];
-    private latestUpdateMessage: string | null;
+    private latestUpdateNotification: CompilerNotification.Body | undefined;
 
-    public constructor(compiler: webpack.Compiler, memoryFS: boolean) {
+    public constructor(compiler: webpack.Compiler, memoryFS: boolean, log: Log.Logger) {
         if(memoryFS) {
             this.fs = new MemoryFileSystem();
             compiler.outputFileSystem = this.fs;
         } else {
             this.fs = fs;
         }
+        this.log = log;
         this.compiler = compiler;
-        this.messageEmittingEvent = new Command<string>(async () => {});
+        this.notifier = new PubSub();
         this.valid = false;
         this.compilationCallbacks = [];
-        this.latestUpdateMessage = null;
+        this.publicPath = (() => {
+            const {compiler} = this;
+            const publicPath = (compiler.options.output && compiler.options.output.publicPath) || "/";
+            return publicPath.endsWith("/") ? publicPath : publicPath + "/";
+        })();
+
         this.addHooks();
     }
 
-    public subscribeToMessages(eventHandler: CommandExecutor<string>) {
-        // TODO: it's probably not necessary to subscribe before sending the latest update message since Node.js is a single-threaded environment.
-        const unsubFunction = this.messageEmittingEvent.subscribeMiddleware(eventHandler);
-        if (this.latestUpdateMessage !== null) {
-            // This allows the client to be updated to the latest bundle in the case where there is a bundle update between the
-            // time that the client loads the bundle js file and the time that the loaded bundle in the client first makes contact
-            // with the server.
-            eventHandler(this.latestUpdateMessage);
-        }
-        return unsubFunction;
+    public subscribeToCompilerNotifications(notificationHandler: Subscriber<CompilerNotification.Body>) {
+        return this.notifier.subscribe(notificationHandler);
+    }
+
+    public getLatestUpdateNotification() {
+        return this.latestUpdateNotification;
     }
 
     public async getReadStream(requestPath: string): Promise<AbstractFileStream|false> {
         const fsPath = this.getFsPathFromRequestPath(requestPath);
         if(!fsPath) return false;
         // Don't stream the file until compilation is done.
-        return await new Promise<fs.ReadStream | false>(resolve => {
+        return await new Promise<AbstractFileStream | false>(resolve => {
             const attemptToRead = () => {
                 this.fs.exists(fsPath, exists => {
                     if(exists) {
                         this.fs.stat(fsPath, (_err, stats) => {
                             if(stats.isFile()) {
-                                log.info("File located. Returning ReadStream.");
-                                resolve(this.fs.createReadStream(fsPath));
+                                this.log.info("File located. Returning ReadStream.");
+                                resolve(new NodeFileStream(this.fs.createReadStream(fsPath) as fs.ReadStream));
                             } else {
-                                log.error("Path exists, but is not a file.");
+                                this.log.error("Path exists, but is not a file.");
                                 resolve(false);
                             }
                         })
                     } else {
-                        log.error("File does not exist.");
+                        this.log.error("File does not exist.");
                         resolve(false);
                     }
                 });
@@ -78,29 +83,23 @@ export class CompilerManager {
         if(requestPath.indexOf(this.publicPath) !== -1) {
             const outputPath = (this.compiler as any).outputPath;
             const adjustedPath = path.resolve(outputPath + '/' + (requestPath.substring(this.publicPath.length)));
-            log.info("(publicPath: '" + this.publicPath + "', requestPath:'" + requestPath + "', compiler.outputPath:'" + outputPath + "') => '" + adjustedPath + "'");
+            this.log.info("(publicPath: '" + this.publicPath + "', requestPath:'" + requestPath + "', compiler.outputPath:'" + outputPath + "') => '" + adjustedPath + "'");
             return adjustedPath;
         } else {
-            log.error("Request path '" + requestPath + "' will not be served because it is not under webpack.config.output.publicPath of '" + this.publicPath + "'");
+            this.log.error("Request path '" + requestPath + "' will not be served because it is not under webpack.config.output.publicPath of '" + this.publicPath + "'");
             return false;
         }
     }
 
-    private get publicPath() {
-        const {compiler} = this;
-        const publicPath = (compiler.options.output && compiler.options.output.publicPath) || "/";
-        return publicPath.endsWith("/") ? publicPath : publicPath + "/";
-    }
-
     private addHooks() {
-        this.compiler.hooks.compile.tap(TOOL_NAME, () => {console.log("inner compile hook");this.sendMessage({type:CompilerNotification.Type.Recompiling});});
-        this.compiler.hooks.invalid.tap(TOOL_NAME, () => {console.log("inner invalid hook");this.invalidate();this.sendMessage({type:CompilerNotification.Type.Recompiling});});
+        this.compiler.hooks.compile.tap(TOOL_NAME, () => {console.log("inner compile hook");this.sendCompilerNotification({type:CompilerNotification.Type.Recompiling});});
+        this.compiler.hooks.invalid.tap(TOOL_NAME, () => {console.log("inner invalid hook");this.invalidate();this.sendCompilerNotification({type:CompilerNotification.Type.Recompiling});});
         this.compiler.hooks.run.tap(TOOL_NAME, () => {console.log("inner run hook");this.invalidate()});
         this.compiler.hooks.watchRun.tap(TOOL_NAME, () => {console.log("inner watchRun hook");this.invalidate()});
         this.compiler.hooks.done.tap(TOOL_NAME, stats => {
             const {compilation} = stats;
             if(compilation.errors.length === 0 && Object.values(compilation.assets).every(asset => !(asset as any).emitted)) {
-                this.sendMessage({type:CompilerNotification.Type.NoChange});
+                this.sendCompilerNotification({type:CompilerNotification.Type.NoChange});
             } else {
                 this.sendUpdateMessage(stats);
             }
@@ -108,9 +107,9 @@ export class CompilerManager {
             // Consider doing the following after the nextTick, which is done in Webpack-Dev-Middleware
             const toStringOptions = this.compiler.options.stats;
             if (toStringOptions) {
-                if (stats.hasErrors()) log.error(stats.toString(toStringOptions));
-                else if (stats.hasWarnings()) log.warn(stats.toString(toStringOptions));
-                else log.info(stats.toString(toStringOptions));
+                if (stats.hasErrors()) this.log.error(stats.toString(toStringOptions));
+                else if (stats.hasWarnings()) this.log.warn(stats.toString(toStringOptions));
+                else this.log.info(stats.toString(toStringOptions));
             }
             let message = 'Compiled successfully.';
             if (stats.hasErrors()) {
@@ -118,7 +117,7 @@ export class CompilerManager {
             } else if (stats.hasWarnings()) {
                 message = 'Compiled with warnings.';
             }
-            log.info(message);
+            this.log.info(message);
             if(this.compilationCallbacks.length) {
                 for(const callback of this.compilationCallbacks) {
                     callback();
@@ -150,19 +149,18 @@ export class CompilerManager {
                 warnings: statsJSON.warnings
             }
         };
-        this.sendMessage(updateMessage);
+        this.sendCompilerNotification(updateMessage);
     }
 
-    private sendMessage(message:CompilerNotification.Body) {
-        const messageString = JSON.stringify(message);
-        if(message.type === CompilerNotification.Type.Update) {
-            this.latestUpdateMessage = messageString;
+    private sendCompilerNotification(notification: CompilerNotification.Body) {
+        if(notification.type === CompilerNotification.Type.Update) {
+            this.latestUpdateNotification = notification;
         }
-        this.messageEmittingEvent.publish(messageString);
+        this.notifier.publish(notification);
     }
 
     private invalidate() {
-        if(this.valid) log.info("Recompiling...");
+        if(this.valid) this.log.info("Recompiling...");
         this.valid = false;
     }
 

@@ -13,6 +13,7 @@ export abstract class AbstractServerModuleRegistry extends AbstractModule.Regist
     ) {
         super({
             [ServerCommand.CompilerNotification]: serverBoundary,
+            [ServerCommand.GetLastCompilerUpdateNotification]: compilerManager,
             [ServerCommand.Log]: logger,
             [ServerCommand.ReadFile]: compilerManager
         });

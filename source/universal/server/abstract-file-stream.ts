@@ -43,7 +43,7 @@ export abstract class AbstractFileStream {
             const chunkRequest = this.dequeue(this.queuedChunkRequests);
             chunkRequest.resolve(chunk);
         } else {
-            // We wrap chink in an object because we want duplicate chunks to remain as separate items in the set.
+            // We wrap chink in an object because we want identical chunks to remain as separate items in the set.
             this.queuedChunks.add({chunk});
         }
     }

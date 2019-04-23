@@ -1,8 +1,9 @@
 import { CompilerManager } from './compiler-manager';
 import webpack = require('webpack');
 import { AbstractCompilerManagerModule } from '@universal/server/module/abstract/compiler-manager-module'
-import { ReadFileRequest } from '@universal/server/command-types';
+import { ReadFileRequest, ServerCommand } from '@universal/server/command-types';
 import { AbstractFileStream } from '@universal/server/abstract-file-stream';
+import { CompilerNotification } from '@universal/shared/api-model';
 
 export class NodeCompilerManagerRegistry extends AbstractCompilerManagerModule {
     private readonly registeredCompilers: Set<webpack.Compiler>;
@@ -20,9 +21,12 @@ export class NodeCompilerManagerRegistry extends AbstractCompilerManagerModule {
         if (this.registeredCompilers.has(compiler)) {
             throw new Error(`Detected attempt to register same compiler multiple times.`);
         }
-        const compilerManager = new CompilerManager(compiler, this.memoryFS);
+        const compilerManager = new CompilerManager(compiler, this.memoryFS, this.log.clone(`[${compilerId.substring(0, 6)}] `));
         this.registeredCompilers.add(compiler);
         this.registry.set(compilerId, compilerManager);
+        compilerManager.subscribeToCompilerNotifications(async notification => {
+            await this.excuteCommand(ServerCommand.CompilerNotification, {notification, compilerId});
+        });
     }
 
     // TODO: remove change the read file request to include a bundleId. The problem with the current request, which only contains a path, is that
@@ -45,5 +49,13 @@ export class NodeCompilerManagerRegistry extends AbstractCompilerManagerModule {
             throw new Error(`More than one compiler contains a file which matches the path of '${request.path}'.`);
         }
         return readStreams[0];
+    }
+
+    protected async getLastCompilerUpdateNotification(compilerId: string): Promise<CompilerNotification.Body|undefined> {
+        const compilerManager = this.registry.get(compilerId);
+        if (compilerManager === undefined) {
+            throw new Error(`Trying to get last compiler update notification for unregistered compiler with id '${compilerId}'.`);
+        }
+        return compilerManager.getLatestUpdateNotification();
     }
 }
