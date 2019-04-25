@@ -3,7 +3,7 @@ import { IClientConfiguration } from '@universal/shared/client-configuration';
 import { v4 as generateUUID } from 'uuid';
 import { AbstractServerModuleRegistry } from '@universal/server/module/abstract/module-registry';
 import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/server-boundary-module';
-import { NodeCompilerManagerRegistry } from './compiler-manager-module';
+import { NodeCompilerManagerRegistryModule } from './compiler-manager-module';
 import { NodeServerLoggerModule } from './logger-module';
 
 export interface PluginOptions {
@@ -12,10 +12,10 @@ export interface PluginOptions {
 }
 
 export class NodeServerModuleRegistry extends AbstractServerModuleRegistry {
-    private readonly compilerManager: NodeCompilerManagerRegistry;
+    private readonly compilerManager: NodeCompilerManagerRegistryModule;
 
     public constructor(serverBoundary: AbstractServerBoundaryModule, memoryFS: boolean) {
-        const compilerManager = new NodeCompilerManagerRegistry(memoryFS);
+        const compilerManager = new NodeCompilerManagerRegistryModule(memoryFS);
         super(
             compilerManager,
             new NodeServerLoggerModule(),

@@ -5,7 +5,7 @@ import { ReadFileRequest, ServerCommand } from '@universal/server/command-types'
 import { AbstractFileStream } from '@universal/server/abstract-file-stream';
 import { CompilerNotification } from '@universal/shared/api-model';
 
-export class NodeCompilerManagerRegistry extends AbstractCompilerManagerModule {
+export class NodeCompilerManagerRegistryModule extends AbstractCompilerManagerModule {
     private readonly registeredCompilers: Set<webpack.Compiler>;
     private readonly registry: Map<string, CompilerManager>;
     private readonly memoryFS: boolean;

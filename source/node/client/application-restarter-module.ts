@@ -7,7 +7,7 @@ import { ClientCommand } from "@universal/client/command-types";
 // TODO: some of the logic in here seems unrelated to restarting the application.
 // I think we need to change it from ApplicationRestarter to something along the
 // lines of "PlatformSpecificLogicContainer".
-export class NodeClientApplicationRestarter extends AbstractClientApplicationRestarterModule {
+export class NodeClientApplicationRestarterModule extends AbstractClientApplicationRestarterModule {
     private readonly pendingMessages: Record<number, {resolve: ()=>void, done: boolean}>;
     private allocatedSequenceNumbers: number;
     

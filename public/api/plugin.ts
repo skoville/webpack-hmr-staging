@@ -1,1 +1,3 @@
-export {Plugin as ScovilleWebpackPlugin} from '@node/server/plugin';
+import { NodeServerModuleRegistry, PluginOptions } from '@node/server/module-registry';
+export type ScovilleWebpackPluginOptions = PluginOptions;
+export const ScovilleWebpackPlugin = NodeServerModuleRegistry.Plugin;

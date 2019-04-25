@@ -7,7 +7,7 @@ import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/
 import { CompilerNotificationPayload, ServerCommand } from '@universal/server/command-types';
 import { NodeFileStream } from '@node/shared/file-stream';
 
-export class DefaultNodeServerBoundary extends AbstractServerBoundaryModule {
+export class DefaultNodeServerBoundaryModule extends AbstractServerBoundaryModule {
     private readonly httpServer: http.Server;
     private readonly ioServer: socketio.Server;
     private readonly compilerIdToSocketSetMap: Map<string, Set<socketio.Socket>>;
@@ -21,7 +21,7 @@ export class DefaultNodeServerBoundary extends AbstractServerBoundaryModule {
         this.ioServer = socketio(this.httpServer);
         this.setUpWebSocketHandling(this.ioServer);
         this.httpServer.listen(port, () => {
-            console.log("listening");
+            console.log(`Listening on port ${port}.`);
         });
     }
 

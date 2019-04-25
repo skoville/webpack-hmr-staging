@@ -1,1 +1,0 @@
-export {SocketIOClientMessageTransporter} from '@universal/client/module/socketio-message-transporter-module';
