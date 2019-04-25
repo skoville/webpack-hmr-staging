@@ -4,7 +4,7 @@ import { injectedClientConfiguration } from "../../injected-client-configuration
 
 export abstract class AbstractClientMessageTransporterModule extends AbstractClientModule<[typeof ClientCommand.SendMessage], [typeof ClientCommand.HandleMessage]> {
     protected readonly url = injectedClientConfiguration.url;
-    protected readonly bundleId = BUNDLE_ID;
+    protected readonly compilerId = COMPILER_ID;
     protected constructor() {
         super({
             [ClientCommand.SendMessage]: message => this.sendMessage(message)

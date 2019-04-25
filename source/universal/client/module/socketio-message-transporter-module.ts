@@ -1,6 +1,6 @@
 import { AbstractClientMessageTransporterModule } from "./abstract/message-transporter-module";
 import * as socketio from 'socket.io-client';
-import { SOCKET_MESSAGE_EVENT_NAME } from "@universal/shared/api-model";
+import { SOCKET_MESSAGE_EVENT_NAME } from "@universal/shared/server-client-notification-model";
 import { ClientCommand } from "../command-types";
 
 export class SocketIOClientMessageTransporter extends AbstractClientMessageTransporterModule {
@@ -8,7 +8,7 @@ export class SocketIOClientMessageTransporter extends AbstractClientMessageTrans
     
     public constructor() {
         super();
-        this.socket = socketio(`${this.url}?${nameof(BUNDLE_ID)}=${BUNDLE_ID}`);
+        this.socket = socketio(`${this.url}?${nameof(COMPILER_ID)}=${this.compilerId}`);
         this.socket.on(SOCKET_MESSAGE_EVENT_NAME, (messageString: string) => {
             this.log.info("received message");
             this.log.info(messageString);

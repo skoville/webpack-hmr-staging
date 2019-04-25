@@ -1,5 +1,5 @@
 import { ServerCommand } from "@universal/server/command-types";
-import { AbstractModule, CommandExecutorImplementations } from "@universal/shared/abstract/module";
+import { AbstractModule, CommandExecutorImplementations } from "@universal/shared/abstract-module";
 import { Log } from "@universal/shared/log";
 
 export abstract class AbstractServerModule<HandledCommands extends (keyof ServerCommand.Types)[], IssuableCommands extends (keyof ServerCommand.Types)[]>

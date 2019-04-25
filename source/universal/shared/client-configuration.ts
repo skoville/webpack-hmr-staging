@@ -1,6 +1,6 @@
 export interface IClientConfiguration {
     /**
-     * The url that the client runtime should use to establish contact with the Scoville server.
+     * The url that the client runtime should use to establish contact with the server.
      */
     url: string;
     /**

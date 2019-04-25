@@ -1,4 +1,4 @@
-import {AbstractModule, CommandExecutorImplementations} from '@universal/shared/abstract/module';
+import {AbstractModule, CommandExecutorImplementations} from '@universal/shared/abstract-module';
 import { ClientCommand } from '../../command-types';
 import { Log } from '@universal/shared/log';
 

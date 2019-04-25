@@ -1,5 +1,5 @@
-import { CommandExecutor, Command, CommandPreExecutionSubscriber, CommandPostExecutionSubscriber } from "../command";
-import { SelfResolvingConstruct } from "../self-resolving-construct";
+import { CommandExecutor, Command, CommandPreExecutionSubscriber, CommandPostExecutionSubscriber } from "./command";
+import { SelfResolvingConstruct } from "./self-resolving-construct";
 
 type PayloadResultTuple = [any, any];
 type CommandTypes<T extends {[CommandIdentifier in keyof T]: PayloadResultTuple}> = {[CommandIdentifier in keyof T]: PayloadResultTuple};

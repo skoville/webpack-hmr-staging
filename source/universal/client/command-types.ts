@@ -1,4 +1,4 @@
-import { CompilerNotification } from "@universal/shared/api-model";
+import { CompilerNotification } from "@universal/shared/server-client-notification-model";
 import { Log } from "@universal/shared/log";
 
 export namespace ClientCommand {

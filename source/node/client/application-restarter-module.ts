@@ -1,5 +1,5 @@
 import { AbstractClientApplicationRestarterModule } from "@universal/client/module/abstract/application-restarter-module";
-import { CompilerNotification } from "@universal/shared/api-model";
+import { CompilerNotification } from "@universal/shared/server-client-notification-model";
 import { BundleRunnerToClientMessageType, BundleRunnerToClientMessage } from "@node/shared/apis/bundle-runner-to-client-message";
 import { ClientToBundleRunnerMessage, ClientToBundleRunnerMessageType } from "@node/shared/apis/client-to-bundle-runner-message";
 import { ClientCommand } from "@universal/client/command-types";

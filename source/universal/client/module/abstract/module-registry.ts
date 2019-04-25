@@ -3,7 +3,7 @@ import { AbstractClientApplicationRestarterModule } from "./application-restarte
 import { ClientRuntime } from "../runtime-module";
 import { ClientCommand } from "../../command-types";
 import { AbstractClientLoggerModule } from "./logger-module";
-import { AbstractModule } from "@universal/shared/abstract/module";
+import { AbstractModule } from "@universal/shared/abstract-module";
 
 export abstract class AbstractClientModuleRegistry extends AbstractModule.Registry<ClientCommand.Types> {
     protected constructor(

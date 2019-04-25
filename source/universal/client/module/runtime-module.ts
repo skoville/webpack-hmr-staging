@@ -1,10 +1,11 @@
 /*globals __webpack_hash__*/
 
-import { CompilerNotification} from '@universal/shared/api-model';
+import { CompilerNotification} from '@universal/shared/server-client-notification-model';
 import { ClientCommand } from '../command-types';
 import { AbstractClientModule } from './abstract/module';
 import { Log } from '@universal/shared/log';
 import { injectedClientConfiguration } from '../injected-client-configuration';
+import { TOOL_NAME } from '@universal/shared/tool-name';
 
 export class ClientRuntime extends AbstractClientModule<[typeof ClientCommand.HandleMessage], [typeof ClientCommand.RestartApplication]> {
 
@@ -124,7 +125,7 @@ class HotSwapRuntime {
             const updatedModules: __WebpackModuleApi.ModuleId[] = await (this.hot as any).check(true);
             if(!updatedModules) {
                 this.log.warn("Cannot find update. Need to do a full Restart!");
-                this.log.warn("(Probably because of restarting the Scoville Webpack Server)");
+                this.log.warn(`(Probably because of restarting the ${TOOL_NAME} Webpack Server)`);
                 this.clientRuntime.startOrPromptAppRestart();
                 return;
             }

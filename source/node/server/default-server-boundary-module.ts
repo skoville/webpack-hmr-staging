@@ -2,7 +2,7 @@ import * as express from 'express';
 import * as mime from 'mime';
 import * as http from 'http';
 import * as socketio from 'socket.io';
-import { SOCKET_MESSAGE_EVENT_NAME, CompilerNotification } from '@universal/shared/api-model';
+import { SOCKET_MESSAGE_EVENT_NAME, CompilerNotification } from '@universal/shared/server-client-notification-model';
 import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/server-boundary-module';
 import { CompilerNotificationPayload, ServerCommand } from '@universal/server/command-types';
 import { NodeFileStream } from '@node/shared/file-stream';
@@ -41,12 +41,12 @@ export class DefaultNodeServerBoundaryModule extends AbstractServerBoundaryModul
                 // header of GET requests made to the header. Also add bundle id to header of GET requests of node HMR client, but this is easier
                 // since we are currently controlling this portion.
                 /**
-                const bundleId = req.header(nameof(BUNDLE_ID));
-                if (bundleId === undefined) {
-                    throw new Error(`Request is missing '${nameof(BUNDLE_ID)}' header. Cannot complete request`);
+                const compilerId = req.header(nameof(COMPILER_ID));
+                if (compilerId === undefined) {
+                    throw new Error(`Request is missing '${nameof(COMPILER_ID)}' header. Cannot complete request`);
                 }
-                console.log(`NEW GET REQUEST. ${nameof(bundleId)} = ${bundleId}`);
-                const compilerManager = CompilerManagerRegistry.getCompilerManager(bundleId);
+                console.log(`NEW GET REQUEST. ${nameof(compilerId)} = ${compilerId}`);
+                const compilerManager = CompilerManagerRegistry.getCompilerManager(compilerId);
                 const stream = await compilerManager.getReadStream(path);
                 if(stream === false) {
                     throw new Error(`The compiler manager does not have any file stored at path '${req.path}'`);
@@ -66,7 +66,7 @@ export class DefaultNodeServerBoundaryModule extends AbstractServerBoundaryModul
     private setUpWebSocketHandling(io: socketio.Server) {
         const { compilerIdToSocketSetMap } = this;
         io.on('connection', async socket => {
-            const compilerId: string = socket.handshake.query[nameof(BUNDLE_ID)];
+            const compilerId: string = socket.handshake.query[nameof(COMPILER_ID)];
             console.log(`NEW CONNECTION. ${nameof(compilerId)} = ${compilerId}`);
             
             const associatedSocketSet = compilerIdToSocketSetMap.get(compilerId) || new Set();

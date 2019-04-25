@@ -2,7 +2,7 @@ import * as webpack from 'webpack';
 import MemoryFileSystem = require('memory-fs');
 import * as path from 'path';
 import * as fs from 'fs';
-import {CompilerNotification} from '@universal/shared/api-model';
+import {CompilerNotification} from '@universal/shared/server-client-notification-model';
 import { TOOL_NAME } from '@universal/shared/tool-name';
 import { AbstractFileStream } from '@universal/server/abstract-file-stream';
 import { NodeFileStream } from '@node/shared/file-stream';

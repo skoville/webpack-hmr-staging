@@ -1,5 +1,5 @@
 import { Log } from "@universal/shared/log";
-import { CompilerNotification } from "@universal/shared/api-model";
+import { CompilerNotification } from "@universal/shared/server-client-notification-model";
 import { AbstractFileStream } from "./abstract-file-stream";
 
 export type ReadFileRequest = {
