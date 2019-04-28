@@ -6,6 +6,7 @@ import { SOCKET_MESSAGE_EVENT_NAME, CompilerNotification } from '@universal/shar
 import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/server-boundary-module';
 import { CompilerNotificationPayload, ServerCommand } from '@universal/server/command-types';
 import { NodeFileStream } from '@node/shared/file-stream';
+import { COMPILER_ID } from '@universal/shared/webpack-bundle-injection-globals';
 
 export class DefaultNodeServerBoundaryModule extends AbstractServerBoundaryModule {
     private readonly httpServer: http.Server;

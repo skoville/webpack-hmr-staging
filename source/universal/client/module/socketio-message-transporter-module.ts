@@ -2,6 +2,7 @@ import { AbstractClientMessageTransporterModule } from "./abstract/message-trans
 import * as socketio from 'socket.io-client';
 import { SOCKET_MESSAGE_EVENT_NAME } from "@universal/shared/server-client-notification-model";
 import { ClientCommand } from "../command-types";
+import { COMPILER_ID } from "@universal/shared/webpack-bundle-injection-globals";
 
 export class SocketIOClientMessageTransporter extends AbstractClientMessageTransporterModule {
     private socket: typeof socketio.Socket;

@@ -10,13 +10,12 @@ import { BundleRunnerToClientMessage, BundleRunnerToClientMessageType } from '@n
 import { ClientToBundleRunnerMessage, ClientToBundleRunnerMessageType } from '@node/shared/apis/client-to-bundle-runner-message';
 import { TOOL_NAME } from '@universal/shared/tool-name';
 import { log } from './logger';
+import { deletePathAsync } from '@node/shared/delete-path-async';
 
 const existsAsync = promisify(fs.exists);
 const statAsync = promisify(fs.stat);
 const unlinkAsync = promisify(fs.unlink);
 const mkdirAsync = promisify(fs.mkdir);
-const readdirAsync = promisify(fs.readdir);
-const rmdirAsync = promisify(fs.rmdir);
 
 // TODO: develop integ tests for Code Splitting, Lazy Loading, etc.
 
@@ -183,22 +182,8 @@ export class DownloadingNodeBundleRunner extends NodeBundleRunner {
         await super.handleMessage(message, bundleProcess);
     }
 
-    // TODO: handle case where someone adds file into folder before complete removal.
-    //       Also handle case where someone puts a lock on one of the files (should probably fail immediately).
     private async recursiveRemoval(pathToRemove: string) {
-        const exists = await existsAsync(pathToRemove);
-        if(exists) {
-            const stats = await statAsync(pathToRemove);
-            if(stats.isDirectory()) {
-                const children = await readdirAsync(pathToRemove);
-                await Promise.all(children
-                    .map(child => path.join(pathToRemove, child))
-                    .map(this.recursiveRemoval.bind(this)));
-                await rmdirAsync(pathToRemove);
-            } else { // it is a file. You delete a file by unlinking it.
-                await unlinkAsync(pathToRemove);
-            }
-        }
+        await deletePathAsync(pathToRemove);
     }
 
 }

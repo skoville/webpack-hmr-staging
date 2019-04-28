@@ -35,7 +35,9 @@ export abstract class AbstractModule<T extends CommandTypes<T>, HandledCommands 
     }
 
     public static readonly Registry = class Registry<T extends CommandTypes<T>> {
-        private readonly commands: {[CommandIdentifier in keyof T]: CommandByTypes<T, CommandIdentifier>};
+        // Unable to make the below instance variable private because of this:
+        // https://github.com/Microsoft/TypeScript/issues/30355
+        readonly commands: {[CommandIdentifier in keyof T]: CommandByTypes<T, CommandIdentifier>};
 
         protected constructor(modulesContainingExecutors: {[CommandIdentifier in keyof T]: AbstractModule<T, [CommandIdentifier], (keyof T)[]>}) {
             // The any here should be fine, because it doesn't matter what the handled commands or issuable commands are when gettting a set of modules to resolve the total command set for.

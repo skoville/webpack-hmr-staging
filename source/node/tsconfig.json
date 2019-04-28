@@ -1,6 +1,6 @@
 {
     "extends": "../../tsconfig-base",
     "compilerOptions": {
-        "types": ["node", "webpack-env","ts-nameof","../universal/shared/webpack-bundle-injection-globals"]
+        "types": ["node", "webpack-env","ts-nameof"]
     },
 }

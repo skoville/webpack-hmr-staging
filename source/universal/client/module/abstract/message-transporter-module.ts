@@ -1,6 +1,7 @@
 import { AbstractClientModule } from "./module";
 import { ClientCommand } from "../../command-types";
 import { injectedClientConfiguration } from "../../injected-client-configuration";
+import { COMPILER_ID } from "@universal/shared/webpack-bundle-injection-globals";
 
 export abstract class AbstractClientMessageTransporterModule extends AbstractClientModule<[typeof ClientCommand.SendMessage], [typeof ClientCommand.HandleMessage]> {
     protected readonly url = injectedClientConfiguration.url;

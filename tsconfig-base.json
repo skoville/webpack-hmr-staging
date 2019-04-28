@@ -21,21 +21,22 @@
             "@web/*": ["web/*"]
         },
 
-        /* Meta Programming */
-        "experimentalDecorators": true
+        /** Output */
+        "outDir": "./distribution",
+        "declaration": true,
+        "stripInternal": true,
+        /* "declaration": true,
+        "declarationMap": true,
+        "stripInternal": true */
 
         /** Look into the following:
-
             allowSyntheticDefaultImports
-            "declaration": true,
-            "declarationMap": true,
             "diagnostics"
             downlevelIteration
             emitDecoratorMetadata
             esModuleInterop
             experimentalDecorators
             extendedDiagnostics <-- doesn't seem to be in the tsconfig.json schema
-            
             importHelpers
             isolatedModules
             listEmittedFiles
