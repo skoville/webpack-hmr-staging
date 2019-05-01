@@ -25,9 +25,6 @@
         "outDir": "./distribution",
         "declaration": true,
         "stripInternal": true,
-        /* "declaration": true,
-        "declarationMap": true,
-        "stripInternal": true */
 
         /** Look into the following:
             allowSyntheticDefaultImports

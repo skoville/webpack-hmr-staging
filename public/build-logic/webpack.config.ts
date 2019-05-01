@@ -1,15 +1,10 @@
 import * as webpack from 'webpack';
 import * as path from 'path';
-import { deletePathAsync } from '../source/node/shared/delete-path-async';
-import { Log } from '../source/universal/shared/log';
-import * as packagejson from '../package.json';
-
-const PUBLIC_API_DIRECTORY = path.resolve(__dirname, "api");
-const PROJECT_DIRECTORY = path.resolve(__dirname, "..");
-const DISTRIBUTION_DIRECTORY = path.resolve(PROJECT_DIRECTORY, "distribution");
-// const NODE_MODULES_DIRECTORY = path.resolve(PROJECT_DIRECTORY, "node_modules");
-const SOURCE_DIRECTORY = path.resolve(PROJECT_DIRECTORY, "source");
-const UNIVERSAL_SOURCE_DIRECTORY = path.resolve(SOURCE_DIRECTORY, "universal");
+// import { deletePathAsync } from '../../source/node/shared/delete-path-async';
+import { Log } from '../../source/universal/shared/log';
+import * as packagejson from '../../package.json';
+import { createDeclarationBundle } from './create-declaration-bundle';
+import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY } from './paths';
 
 enum Target {
     node = 'node',
@@ -36,21 +31,22 @@ const directDependencies = new Set<string>(Object.keys(packagejson.dependencies)
 
 type ExternalsHandler = (ctx: string, req: string, callback: (err?: any, val?: string, type?: 'commonjs') => void) => void;
 // To externalize means to exclude from the final bundle, preserving the require/import statement in the output.
-class Externals {
-    public static readonly ExternalizeNothing: ExternalsHandler = (_context, request, callback) => {
+class Externalize {
+    public static readonly Nothing: ExternalsHandler = (_context, request, callback) => {
         if (["bufferutil", "utf-8-validate"].includes(request)) { // This is needed to solve a bug in the 'ws' library. https://github.com/websockets/ws/issues/1220
             callback(null, request, "commonjs");
             return;
         }
         callback(); // This includes the module in the bundle.
     }
-    public static readonly ExternalizeDependencies: ExternalsHandler = (context, request, callback) => {
+    public static readonly Dependencies: ExternalsHandler = (context, request, callback) => {
         if (directDependencies.has(request)) {
             callback(null, request, 'commonjs'); // This externalizes the module
         } else {
-            if (!request.startsWith("@") && (request.includes("node_modules") || context.includes("node_modules"))) {
-                console.log("request =", request);
-                console.log("context =", context);
+            if ((request.includes("node_modules") || context.includes("node_modules"))) {
+                log.trace("bundling node_modules file due to explicit reference from source.");
+                log.warn("request = " + request);
+                log.warn("context = " + context);
                 console.log();
             }
             callback(); // This includes the module in the bundle.
@@ -72,10 +68,7 @@ function generateWebpackConfiguration(target: Target, entry: string, externals: 
                     use: {
                         loader: 'ts-loader',
                         options: {
-                            configFile: tsconfigPath,
-                            compilerOptions: {
-                                outFile
-                            }
+                            configFile: tsconfigPath
                         }
                     }
                 }
@@ -99,14 +92,14 @@ function generateWebpackConfiguration(target: Target, entry: string, externals: 
 type ConfigOrder = [Configuration, Target, Side, ExternalsHandler];
 
 async function createWebpackConfigs() {
-    await deletePathAsync(DISTRIBUTION_DIRECTORY);
+    // await deletePathAsync(DISTRIBUTION_DIRECTORY);
     const orders: ConfigOrder[] = [
-        [Configuration.customizable, Target.node, Side.client, Externals.ExternalizeDependencies],
-        [Configuration.customizable, Target.node, Side.server, Externals.ExternalizeDependencies],
-        [Configuration.customizable, Target.web,  Side.client, Externals.ExternalizeDependencies],
-        [Configuration.default,      Target.node, Side.client, Externals.ExternalizeNothing],
-        [Configuration.default,      Target.node, Side.server, Externals.ExternalizeDependencies],
-        [Configuration.default,      Target.web,  Side.client, Externals.ExternalizeNothing]
+        [Configuration.customizable, Target.node, Side.client, Externalize.Dependencies],
+        [Configuration.customizable, Target.node, Side.server, Externalize.Dependencies],
+        [Configuration.customizable, Target.web,  Side.client, Externalize.Dependencies],
+        [Configuration.default,      Target.node, Side.client, Externalize.Nothing],
+        [Configuration.default,      Target.node, Side.server, Externalize.Dependencies],
+        [Configuration.default,      Target.web,  Side.client, Externalize.Nothing]
     ];
     const configs: webpack.Configuration[] = orders.map(([configuration, target, side, externals]) => generateWebpackConfiguration(
         target,
@@ -117,9 +110,20 @@ async function createWebpackConfigs() {
     configs.push(generateWebpackConfiguration(
         Target.node,
         path.resolve(PUBLIC_API_DIRECTORY, "plugin.ts"),
-        Externals.ExternalizeDependencies
+        Externalize.Dependencies
     ));
-    // console.log(JSON.stringify(configs[0], null, 2));
+    // console.log(JSON.stringify(configs, null, 2));
+    return configs;
+}
+
+async function start() {
+    const configs = await createWebpackConfigs();
+    configs.forEach(config => {
+        createDeclarationBundle(config);
+    });
+    if (configs) {
+        return;
+    }
     webpack(configs).run((err?: Error, stats?: webpack.Stats) => {
         if (err) {
             console.log("ERROR");
@@ -128,7 +132,9 @@ async function createWebpackConfigs() {
         if (stats) {
             const statsJSON = stats.toJson();
             console.log("hash =", statsJSON.hash);
-            if (stats.hasErrors()) {
+            const errorsPresent = stats.hasErrors();
+            const warningsPresent = stats.hasWarnings();
+            if (errorsPresent) {
                 console.log();
                 console.log("STATS HAS ERRORS");
                 console.log();
@@ -137,7 +143,7 @@ async function createWebpackConfigs() {
                     console.log();
                 });
             }
-            if (stats.hasWarnings()) {
+            if (warningsPresent) {
                 console.log("STATS HAS WARNINGS");
                 console.log();
                 statsJSON.warnings.forEach((warning: string) => {
@@ -150,4 +156,4 @@ async function createWebpackConfigs() {
     });
 }
 
-createWebpackConfigs();
+start();
