@@ -2,10 +2,17 @@ import webpack = require("webpack");
 import * as path from 'path';
 import * as fs from 'fs';
 import { promisify } from "util";
+import { DISTRIBUTION_DIRECTORY } from "./paths";
 
+const readDirAsync = promisify(fs.readdir);
 const readFileAsync = promisify(fs.readFile);
+const rmdirAsync = promisify(fs.rmdir);
+const statAsync = promisify(fs.stat);
+const unlinkAsync = promisify(fs.unlink);
 const writeFileAsync = promisify(fs.writeFile);
 
+const usedDeclarationFiles = new Set<string>();
+       
 /**
  * - given that a webpack bundle has already been generated and declaration files have been generated. 
  * - given that tsconfig includes outDir.
@@ -19,6 +26,8 @@ export async function createDeclarationBundle(webpackConfig: webpack.Configurati
     if (webpackOutput === undefined) throw new Error("");
     const outputPath = webpackOutput.path;
     if (outputPath === undefined) throw new Error("");
+    const outputFilename = webpackOutput.filename;
+    if (outputFilename === undefined) throw new Error("");
 
     const commonPath = (function(str1: string, str2: string) {
         for(var i = 0; i < str1.length; ++i) {
@@ -44,11 +53,12 @@ export async function createDeclarationBundle(webpackConfig: webpack.Configurati
                 [key.split("/*")[0], value[0].split("/*")[0]]));
 
     async function rewriteImportAliases(currentSourceFilePath: string) {
+        usedDeclarationFiles.add(currentSourceFilePath);
         const currentSourceFilePathContainingDirectory = path.dirname(currentSourceFilePath);
         const importRegex = /(import|export)\s*\{.*\}\s*from\s*("|')(.*)("|')/g
         const importRegexModuleNameGroup = 3; // This is the regex group that will contain the actual module name
         const sourceFileContents = (await readFileAsync(currentSourceFilePath)).toString();
-        console.log(currentSourceFilePath);
+        // console.log(currentSourceFilePath);
         const rewrites: {before: string; after: string;}[] = [];
         var importRegexMatch = importRegex.exec(sourceFileContents);
         const relativeImportPaths: string[] = [];
@@ -98,9 +108,60 @@ export async function createDeclarationBundle(webpackConfig: webpack.Configurati
 
     await rewriteImportAliases(entryDeclarationFile);
 
-    console.log();
-    console.log();
-    console.log();
+    // Create declaration file which is adjacent to the output, which maps to the correct declaration file.
+    const relativePathFromOutputToProjectDir = (() => {
+        var upwardsPathTraversal: string = "../../";
+        console.log("op = " + outputPath);
+        console.log("cp = " + commonPath);
+        var cur = path.resolve(outputPath, upwardsPathTraversal);
+        console.log(cur);
+        while(cur !== commonPath) {
+            //upwardsPathTraversal += "../";
+            cur = path.resolve(outputPath, upwardsPathTraversal);
+            //console.log(cur);
+        }
+        return upwardsPathTraversal;
+    })();
+    const relativePathFromOutputToCorrespondingEntryFile =
+        relativePathFromOutputToProjectDir + 
+        tsconfigBase.compilerOptions.outDir +
+        entry.substring(commonPath.length).replace(/.ts$/, ".d.ts");
+    console.log(relativePathFromOutputToCorrespondingEntryFile);
+    //await writeFileAsync("", `export * from '${}'`)
 
-    // Recurse starting from the 
+    console.log();
+    console.log();
+    console.log();
+}
+
+export async function removeUnusedDeclarationFiles(directory: string) {
+    const recursiveRemovalResults = await Promise.all((await readDirAsync(DISTRIBUTION_DIRECTORY))
+        .map(relativeChildPath => path.resolve(directory, relativeChildPath))
+        .map(async absoluteChildPath => {
+            const stat = await statAsync(absoluteChildPath);
+            if(stat.isFile()) {
+                if (usedDeclarationFiles.has(absoluteChildPath)) {
+                    return true;
+                } else {
+                    // remove the file.
+                    console.log("deleting file " + absoluteChildPath);
+                    await unlinkAsync(absoluteChildPath);
+                    return false;
+                }
+            } else if (stat.isDirectory()) {
+                return await removeUnusedDeclarationFiles(absoluteChildPath);
+            } else {
+                throw new Error("Neither file nor directory.");
+            }
+        }));
+    for (const result of recursiveRemovalResults) {
+        if (result === true) {
+            return true;
+        }
+    }
+    // rmdir if all children have been removed.
+    console.log("deleting folder " + directory);
+    await rmdirAsync(directory);
+    return false;
+    
 }

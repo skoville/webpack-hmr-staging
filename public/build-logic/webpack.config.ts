@@ -1,9 +1,9 @@
 import * as webpack from 'webpack';
 import * as path from 'path';
-// import { deletePathAsync } from '../../source/node/shared/delete-path-async';
+import { deletePathAsync } from '../../source/node/shared/delete-path-async';
 import { Log } from '../../source/universal/shared/log';
 import * as packagejson from '../../package.json';
-import { createDeclarationBundle } from './create-declaration-bundle';
+import { createDeclarationBundle, removeUnusedDeclarationFiles } from './create-declaration-bundle';
 import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY } from './paths';
 
 enum Target {
@@ -92,7 +92,7 @@ function generateWebpackConfiguration(target: Target, entry: string, externals: 
 type ConfigOrder = [Configuration, Target, Side, ExternalsHandler];
 
 async function createWebpackConfigs() {
-    // await deletePathAsync(DISTRIBUTION_DIRECTORY);
+    await deletePathAsync(DISTRIBUTION_DIRECTORY);
     const orders: ConfigOrder[] = [
         [Configuration.customizable, Target.node, Side.client, Externalize.Dependencies],
         [Configuration.customizable, Target.node, Side.server, Externalize.Dependencies],
@@ -118,12 +118,6 @@ async function createWebpackConfigs() {
 
 async function start() {
     const configs = await createWebpackConfigs();
-    configs.forEach(config => {
-        createDeclarationBundle(config);
-    });
-    if (configs) {
-        return;
-    }
     webpack(configs).run((err?: Error, stats?: webpack.Stats) => {
         if (err) {
             console.log("ERROR");
@@ -153,6 +147,11 @@ async function start() {
             }
             console.log();
         }
+        Promise.all(configs.map(config => createDeclarationBundle(config)))
+            .then(() => {
+                removeUnusedDeclarationFiles(DISTRIBUTION_DIRECTORY);
+            });
+        
     });
 }
 
