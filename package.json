@@ -2,7 +2,6 @@
   "name": "scoville-webpack",
   "version": "0.0.1",
   "description": "webpack-based, hot code swapping CI/CD platform.",
-  "main": "index.js",
   "dependencies": {
     "ansicolor": "^1.1.83",
     "express": "^4.16.4",

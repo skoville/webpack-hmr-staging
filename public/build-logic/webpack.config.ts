@@ -3,8 +3,10 @@ import * as path from 'path';
 import { deletePathAsync } from '../../source/node/shared/delete-path-async';
 import { Log } from '../../source/universal/shared/log';
 import * as packagejson from '../../package.json';
-import { createDeclarationBundle, removeUnusedDeclarationFiles } from './create-declaration-bundle';
-import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY } from './paths';
+import { generateDeclarationModuleText } from './create-declaration-bundle';
+import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, DISTRIBUTION_TYPES_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY } from './paths';
+import * as fs from 'fs';
+import { promisify } from 'util';
 
 enum Target {
     node = 'node',
@@ -34,7 +36,7 @@ type ExternalsHandler = (ctx: string, req: string, callback: (err?: any, val?: s
 class Externalize {
     public static readonly Nothing: ExternalsHandler = (_context, request, callback) => {
         if (["bufferutil", "utf-8-validate"].includes(request)) { // This is needed to solve a bug in the 'ws' library. https://github.com/websockets/ws/issues/1220
-            callback(null, request, "commonjs");
+            callback(null, request, "commonjs"); // This externalizes the module
             return;
         }
         callback(); // This includes the module in the bundle.
@@ -55,7 +57,7 @@ class Externalize {
 }
 
 function generateWebpackConfiguration(target: Target, entry: string, externals: ExternalsHandler, extensions: string[] = ['.ts']): webpack.Configuration {
-    const {name: outFile, dir: outPath} = path.parse(entry.substring(PUBLIC_API_DIRECTORY.length));
+    const {name: outFile, dir: outDistSubDirectory} = path.parse(entry.substring(PUBLIC_API_DIRECTORY.length));
     const tsconfigPath = path.resolve(SOURCE_DIRECTORY, target, "tsconfig.json");
     return {
         entry,
@@ -76,7 +78,7 @@ function generateWebpackConfiguration(target: Target, entry: string, externals: 
         },
         output: {
             filename: outFile + '.js',
-            path: path.resolve(DISTRIBUTION_DIRECTORY, "." + outPath)
+            path: path.resolve(DISTRIBUTION_DIRECTORY, "." + outDistSubDirectory)
         },
         resolve: {
             extensions,
@@ -116,9 +118,15 @@ async function createWebpackConfigs() {
     return configs;
 }
 
+const writeFileAsync = promisify(fs.writeFile);
+
+function prettyPrintJSON(object: any) {
+    return JSON.stringify(object, null, 2);
+}
+
 async function start() {
     const configs = await createWebpackConfigs();
-    webpack(configs).run((err?: Error, stats?: webpack.Stats) => {
+    webpack(configs).run(async (err?: Error, stats?: webpack.Stats) => {
         if (err) {
             console.log("ERROR");
             console.log(err);
@@ -147,11 +155,16 @@ async function start() {
             }
             console.log();
         }
-        Promise.all(configs.map(config => createDeclarationBundle(config)))
-            .then(() => {
-                removeUnusedDeclarationFiles(DISTRIBUTION_DIRECTORY);
-            });
-        
+        const declarationContents = (await Promise.all(configs.map(config => generateDeclarationModuleText(config))))
+            .reduce((fileContents, currentModuleDeclaration) => fileContents + currentModuleDeclaration, "");
+        await writeFileAsync(path.resolve(DISTRIBUTION_TYPES_DIRECTORY, "index.d.ts"), declarationContents);
+        //await removeUnusedDeclarationFiles(DISTRIBUTION_DIRECTORY);
+        // Create tsconfig
+        await writeFileAsync(path.resolve(DISTRIBUTION_DIRECTORY, "tsconfig.json"), prettyPrintJSON({extends: "../tsconfig-distribution-base"}));
+        // Create .npmignore
+        await writeFileAsync(path.resolve(DISTRIBUTION_DIRECTORY, ".npmignore"), "./tsconfig.json");
+        // Copy package.json
+        await writeFileAsync(path.resolve(DISTRIBUTION_DIRECTORY, "package.json"), prettyPrintJSON({...packagejson, types: "./types"}));
     });
 }
 

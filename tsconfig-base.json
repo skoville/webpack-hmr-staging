@@ -22,9 +22,8 @@
         },
 
         /** Output */
-        "outDir": "./distribution",
+        "outDir": "./distribution/types",
         "declaration": true,
-        "stripInternal": true,
 
         /** Look into the following:
             allowSyntheticDefaultImports

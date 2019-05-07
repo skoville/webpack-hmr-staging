@@ -1,0 +1,10 @@
+{
+    "extends": "./tsconfig-base",
+    "compilerOptions": {
+        /* Module Resolution */
+        "baseUrl": "./distribution",
+        "paths": {
+            "scoville-webpack/*": ["*"]
+        },
+    }
+}
