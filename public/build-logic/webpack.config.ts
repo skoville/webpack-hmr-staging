@@ -3,8 +3,8 @@ import * as path from 'path';
 import { deletePathAsync } from '../../source/node/shared/delete-path-async';
 import { Log } from '../../source/universal/shared/log';
 import * as packagejson from '../../package.json';
-import { generateDeclarationModuleText } from './create-declaration-bundle';
-import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, DISTRIBUTION_TYPES_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY } from './paths';
+import { generateDeclarationModuleText, usedDeclarationFilesTracker } from './create-declaration-bundle';
+import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY, DISTRIBUTION_TYPES_DIRECTORY } from './paths';
 import * as fs from 'fs';
 import { promisify } from 'util';
 
@@ -94,7 +94,6 @@ function generateWebpackConfiguration(target: Target, entry: string, externals: 
 type ConfigOrder = [Configuration, Target, Side, ExternalsHandler];
 
 async function createWebpackConfigs() {
-    await deletePathAsync(DISTRIBUTION_DIRECTORY);
     const orders: ConfigOrder[] = [
         [Configuration.customizable, Target.node, Side.client, Externalize.Dependencies],
         [Configuration.customizable, Target.node, Side.server, Externalize.Dependencies],
@@ -114,7 +113,6 @@ async function createWebpackConfigs() {
         path.resolve(PUBLIC_API_DIRECTORY, "plugin.ts"),
         Externalize.Dependencies
     ));
-    // console.log(JSON.stringify(configs, null, 2));
     return configs;
 }
 
@@ -126,6 +124,7 @@ function prettyPrintJSON(object: any) {
 
 async function start() {
     const configs = await createWebpackConfigs();
+    await deletePathAsync(DISTRIBUTION_DIRECTORY);
     webpack(configs).run(async (err?: Error, stats?: webpack.Stats) => {
         if (err) {
             console.log("ERROR");
@@ -157,8 +156,10 @@ async function start() {
         }
         const declarationContents = (await Promise.all(configs.map(config => generateDeclarationModuleText(config))))
             .reduce((fileContents, currentModuleDeclaration) => fileContents + currentModuleDeclaration, "");
-        await writeFileAsync(path.resolve(DISTRIBUTION_TYPES_DIRECTORY, "index.d.ts"), declarationContents);
-        //await removeUnusedDeclarationFiles(DISTRIBUTION_DIRECTORY);
+        const packageWideDeclarationFile = path.resolve(DISTRIBUTION_TYPES_DIRECTORY, "index.d.ts");
+        await writeFileAsync(packageWideDeclarationFile, declarationContents);
+        usedDeclarationFilesTracker.markAsUsed(packageWideDeclarationFile);
+        await usedDeclarationFilesTracker.removedAllUnused(DISTRIBUTION_DIRECTORY);
         // Create tsconfig
         await writeFileAsync(path.resolve(DISTRIBUTION_DIRECTORY, "tsconfig.json"), prettyPrintJSON({extends: "../tsconfig-distribution-base"}));
         // Create .npmignore
