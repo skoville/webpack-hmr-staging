@@ -4,9 +4,8 @@ import { deletePathAsync } from '../../source/node/shared/delete-path-async';
 import { Log } from '../../source/universal/shared/log';
 import * as packagejson from '../../package.json';
 import { generateDeclarationModuleText, usedDeclarationFilesTracker } from './create-declaration-bundle';
-import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY, DISTRIBUTION_TYPES_DIRECTORY } from './paths';
-import * as fs from 'fs';
-import { promisify } from 'util';
+import { PUBLIC_API_DIRECTORY, SOURCE_DIRECTORY, DISTRIBUTION_DIRECTORY, UNIVERSAL_SOURCE_DIRECTORY } from './paths';
+import { fsAsync, prettyPrintJSON } from './util';
 
 enum Target {
     node = 'node',
@@ -116,12 +115,6 @@ async function createWebpackConfigs() {
     return configs;
 }
 
-const writeFileAsync = promisify(fs.writeFile);
-
-function prettyPrintJSON(object: any) {
-    return JSON.stringify(object, null, 2);
-}
-
 async function start() {
     const configs = await createWebpackConfigs();
     await deletePathAsync(DISTRIBUTION_DIRECTORY);
@@ -154,18 +147,10 @@ async function start() {
             }
             console.log();
         }
-        const declarationContents = (await Promise.all(configs.map(config => generateDeclarationModuleText(config))))
-            .reduce((fileContents, currentModuleDeclaration) => fileContents + currentModuleDeclaration, "");
-        const packageWideDeclarationFile = path.resolve(DISTRIBUTION_TYPES_DIRECTORY, "index.d.ts");
-        await writeFileAsync(packageWideDeclarationFile, declarationContents);
-        usedDeclarationFilesTracker.markAsUsed(packageWideDeclarationFile);
+        await Promise.all(configs.map(config => generateDeclarationModuleText(config)));
         await usedDeclarationFilesTracker.removedAllUnused(DISTRIBUTION_DIRECTORY);
-        // Create tsconfig
-        await writeFileAsync(path.resolve(DISTRIBUTION_DIRECTORY, "tsconfig.json"), prettyPrintJSON({extends: "../tsconfig-distribution-base"}));
-        // Create .npmignore
-        await writeFileAsync(path.resolve(DISTRIBUTION_DIRECTORY, ".npmignore"), "./tsconfig.json");
         // Copy package.json
-        await writeFileAsync(path.resolve(DISTRIBUTION_DIRECTORY, "package.json"), prettyPrintJSON({...packagejson, types: "./types"}));
+        await fsAsync.writeFile(path.resolve(DISTRIBUTION_DIRECTORY, "package.json"), prettyPrintJSON(packagejson));
     });
 }
 

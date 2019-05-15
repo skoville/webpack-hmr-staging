@@ -1,0 +1,11 @@
+{
+    "description": "integration tests",
+    "dependencies": {
+        "scoville-webpack": "file:../../distribution/scoville-webpack.tgz"
+    },
+    "scripts": {
+        "test": ""
+    },
+    "author": "Alexander Leung",
+    "license": "MIT"
+}

@@ -33,7 +33,11 @@
     "typescript": "^3.4.4"
   },
   "scripts": {
-    "build": "ts-node --project ./public/tsconfig.json ./public/build-logic/webpack.config.ts"
+    "build": "ts-node --project ./public/tsconfig.json ./public/build-logic/webpack.config.ts && cd ./distribution && npm pack && cd ../",
+    "postbuild": "ts-node --project ./public/tsconfig.json ./public/build-logic/post-build.ts",
+    "start": "npm run build && npm test",
+    "test": "npm run test:integration",
+    "test:integration": "cd ./test/integration && npm un -P scoville-webpack && npm i -P ../../distribution/scoville-webpack.tgz"
   },
   "repository": {
     "type": "git",

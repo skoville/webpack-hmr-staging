@@ -1,15 +1,9 @@
 import webpack = require("webpack");
 import * as path from 'path';
-import * as fs from 'fs';
-import { promisify } from "util";
 import { PROJECT_DIRECTORY, DISTRIBUTION_DIRECTORY } from "./paths";
-
-const readDirAsync = promisify(fs.readdir);
-const readFileAsync = promisify(fs.readFile);
-const rmdirAsync = promisify(fs.rmdir);
-const statAsync = promisify(fs.stat);
-const unlinkAsync = promisify(fs.unlink);
-const writeFileAsync = promisify(fs.writeFile);
+import { fsAsync, loadJSON } from "./util";
+//import * as tsconfigBase from '../../tsconfig-base.json';
+import * as packagejson from '../../package.json';
 
 class UsedDeclarationFilesTracker {
     private usedDeclarationFiles = new Set<string>();
@@ -18,17 +12,17 @@ class UsedDeclarationFilesTracker {
         this.usedDeclarationFiles.add(path.normalize(path.resolve(usedPath)));
     }
     public async removedAllUnused(directory: string) {
-        const recursiveRemovalResults = await Promise.all((await readDirAsync(directory))
+        const recursiveRemovalResults = await Promise.all((await fsAsync.readDirectory(directory))
             .map(relativeChildPath => path.resolve(directory, relativeChildPath))
             .map(async absoluteChildPath => {
-                const stat = await statAsync(absoluteChildPath);
+                const stat = await fsAsync.statistics(absoluteChildPath);
                 if(stat.isFile()) {
                     if (this.usedDeclarationFiles.has(absoluteChildPath) || !absoluteChildPath.endsWith(".d.ts")) {
                         return true;
                     } else {
                         // remove the file.
                         console.log("deleting file " + absoluteChildPath);
-                        await unlinkAsync(absoluteChildPath);
+                        await fsAsync.deleteFile(absoluteChildPath);
                         return false;
                     }
                 } else if (stat.isDirectory()) {
@@ -44,28 +38,21 @@ class UsedDeclarationFilesTracker {
         }
         // rmdir if all children have been removed.
         console.log("deleting folder " + directory);
-        await rmdirAsync(directory);
+        await fsAsync.deleteDirectory(directory);
         return false;
     }
 }
 export const usedDeclarationFilesTracker = new UsedDeclarationFilesTracker();
 
-// TODO: better to just import the json directly that this eval solution.
-var tsconfigBase: any;
-eval("tsconfigBase=" + (fs.readFileSync(path.resolve(PROJECT_DIRECTORY, "tsconfig-base.json"))).toString());
+const tsconfigBase = loadJSON(path.resolve(PROJECT_DIRECTORY, "./tsconfig-base.json")); // TODO: use import of json. Waiting on resolution of parsing jsons with comments, or removing comments.
 const desclarationsDir: string = path.resolve(PROJECT_DIRECTORY, tsconfigBase.compilerOptions.outDir);
-
 const baseDir: string = tsconfigBase.compilerOptions.baseUrl;
-    const aliasPaths: Record<string, string[]> = tsconfigBase.compilerOptions.paths;  
-    const aliasMap = new Map(
-        Object.entries(aliasPaths)
-            .map(([key, value]): [string, string] => 
-                [key.split("/*")[0], value[0].split("/*")[0]]));
+const aliasMap = new Map(
+    Object.entries(tsconfigBase.compilerOptions.paths as Record<string, string[]>)
+        .map(([key, value]) => 
+            [key.split("/*")[0], value[0].split("/*")[0]]));
 
-// TODO import json directly
-var tsconfigdistributionbase: any;
-eval("tsconfigdistributionbase=" + (fs.readFileSync(path.resolve(PROJECT_DIRECTORY, "tsconfig-distribution-base.json"))).toString());
-const moduleName: string = Object.keys(tsconfigdistributionbase.compilerOptions.paths)[0].split("/")[0];
+const moduleName: string = packagejson.name;
 
 enum FSAction {
     Stats = "stats",
@@ -120,7 +107,7 @@ const ioSeriesManager = new IOSeriesManager();
 
 async function getRelativeImportPath(absoluteFrom: string, absoluteTo: string) {
     reportFSAction(FSAction.Stats, absoluteFrom, true);
-    const fromStats = await statAsync(absoluteFrom)
+    const fromStats = await fsAsync.statistics(absoluteFrom)
     reportFSAction(FSAction.Stats, absoluteFrom, false);
     const fromFolder = fromStats.isFile() ? path.parse(absoluteFrom).dir : absoluteFrom;
     const result = path.relative(fromFolder, absoluteTo).replace(/\\/g, "/").replace(/.d.ts$/, "");
@@ -155,7 +142,7 @@ export async function generateDeclarationModuleText(webpackConfig: webpack.Confi
         const importRegexModuleNameGroup = 3; // This is the regex group that will contain the actual module name
         await ioSeriesManager.enqueueOperation(currentDeclarationFilePath, async () => {
             reportFSAction(FSAction.Read, currentDeclarationFilePath, true);
-            const sourceFileContents = (await readFileAsync(currentDeclarationFilePath)).toString();
+            const sourceFileContents = (await fsAsync.readFile(currentDeclarationFilePath)).toString();
             reportFSAction(FSAction.Read, currentDeclarationFilePath, false);
             if (sourceFileContents.length === 0) {
                 console.log("0    length:", currentDeclarationFilePath);
@@ -196,7 +183,7 @@ export async function generateDeclarationModuleText(webpackConfig: webpack.Confi
                 final = final.replace(rewrite.before, rewrite.after);
             }
             reportFSAction(FSAction.Write, currentDeclarationFilePath, true);
-            await writeFileAsync(currentDeclarationFilePath, final);
+            await fsAsync.writeFile(currentDeclarationFilePath, final);
             reportFSAction(FSAction.Write, currentDeclarationFilePath, false);
             await Promise.all(relativeImportPaths
                 .map(relativeImportPath => path.resolve(currentSourceFilePathContainingDirectory, relativeImportPath + ".d.ts"))
@@ -207,9 +194,13 @@ export async function generateDeclarationModuleText(webpackConfig: webpack.Confi
     await rewriteImportAliases(entryDeclarationFile);
 
     const outputSubpathWithinDistributionDirectory = outputPath.substring(DISTRIBUTION_DIRECTORY.length) + path.sep + outputFilename.replace(/.js$/, "");
-    return `
+    const declarationOutput = `
 declare module "${moduleName}${outputSubpathWithinDistributionDirectory.replace(/\\/g, "/")}" {
-    export * from "${moduleName}/types${entrySubpathWithinDeclarationsDirectory.replace(/\\/g, "/")}";
+    export * from "${moduleName}/types${entrySubpathWithinDeclarationsDirectory.replace(/\\/g, "/").replace(/.d.ts$/, "")}";
 }
 `;
+    // Write out to file.
+    const outputDeclarationFile = path.resolve(outputPath, outputFilename.replace(/.js$/, ".d.ts"));
+    await fsAsync.writeFile(outputDeclarationFile, declarationOutput);
+    usedDeclarationFilesTracker.markAsUsed(outputDeclarationFile);
 }
