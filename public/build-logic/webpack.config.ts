@@ -77,7 +77,8 @@ function generateWebpackConfiguration(target: Target, entry: string, externals: 
         },
         output: {
             filename: outFile + '.js',
-            path: path.resolve(DISTRIBUTION_DIRECTORY, "." + outDistSubDirectory)
+            path: path.resolve(DISTRIBUTION_DIRECTORY, "." + outDistSubDirectory),
+            libraryTarget: "commonjs"
         },
         resolve: {
             extensions,

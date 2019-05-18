@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "lib": ["esnext"],
-        "types": []
+        "lib": ["esnext", "dom"],
+        "types": ["webpack-env"]
     }
 }

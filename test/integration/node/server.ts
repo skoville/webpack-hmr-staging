@@ -1,4 +1,4 @@
-import express from 'express';
+import * as express from 'express';
 import {message} from './wording';
 
 var theMessage = message;

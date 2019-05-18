@@ -13,7 +13,6 @@ export interface PluginOptions {
 }
 
 export class NodeServerModuleRegistry extends AbstractServerModuleRegistry {
-    private static readonly PluginOptionsMap: Map<webpack.Plugin, PluginOptions> = new Map();
     private readonly compilerManager: NodeCompilerManagerRegistryModule;
 
     public constructor(serverBoundary: AbstractServerBoundaryModule, memoryFS: boolean) {
@@ -27,14 +26,10 @@ export class NodeServerModuleRegistry extends AbstractServerModuleRegistry {
     }
 
     public static readonly Plugin = class Plugin implements webpack.Plugin {
-        public constructor(options: PluginOptions) {
-            // Need to use this map instead of making options a private instance variable because of this:
-            // https://github.com/Microsoft/TypeScript/issues/30355
-            NodeServerModuleRegistry.PluginOptionsMap.set(this, options);
-        }
+        public constructor(readonly options: PluginOptions) {}
 
         public apply(compiler: webpack.Compiler) {
-            const options = NodeServerModuleRegistry.PluginOptionsMap.get(this);
+            const options = this.options;
             if (options === undefined) {
                 throw new Error("Impossible state: options undefined");
             }
