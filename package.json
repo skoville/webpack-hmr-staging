@@ -30,6 +30,7 @@
     "ts-loader": "^5.4.3",
     "ts-loader-decleration": "^0.10.4",
     "ts-nameof": "^3.0.3",
+    "ts-nameof-loader": "^1.0.2",
     "ts-node": "^8.1.0",
     "typescript": "^3.4.4"
   },

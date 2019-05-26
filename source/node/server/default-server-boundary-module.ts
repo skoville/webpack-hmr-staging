@@ -6,7 +6,8 @@ import { SOCKET_MESSAGE_EVENT_NAME, CompilerNotification } from '@universal/shar
 import { AbstractServerBoundaryModule } from '@universal/server/module/abstract/server-boundary-module';
 import { CompilerNotificationPayload, ServerCommand } from '@universal/server/command-types';
 import { NodeFileStream } from '@node/shared/file-stream';
-import { COMPILER_ID } from '@universal/shared/webpack-bundle-injection-globals';
+//import { COMPILER_ID } from '@universal/shared/injected-client-configuration';
+import ansicolor = require('ansicolor');
 
 export class DefaultNodeServerBoundaryModule extends AbstractServerBoundaryModule {
     private readonly httpServer: http.Server;
@@ -22,12 +23,14 @@ export class DefaultNodeServerBoundaryModule extends AbstractServerBoundaryModul
         this.ioServer = socketio(this.httpServer);
         this.setUpWebSocketHandling(this.ioServer);
         this.httpServer.listen(port, () => {
-            console.log(`Listening on port ${port}.`);
+            console.log("working");
+            this.log.info(`Listening on port ${port}.`);
         });
     }
 
     private setUpGETRequestHandling(app: express.Express) {
         app.get("*", async (req, res, next) => {
+            this.log.info("get request incoming");
             try {
                 const path = req.path === '/' ? '/index.html' : req.path;
                 const mimeType = mime.getType(path);
@@ -55,9 +58,11 @@ export class DefaultNodeServerBoundaryModule extends AbstractServerBoundaryModul
                 */
 
                 // For now we have to do it this way.
-                const fileSteam = await this.excuteCommand(ServerCommand.ReadFile, {path});
-                await NodeFileStream.pipe(fileSteam, res);
+                const fileStream = await this.excuteCommand(ServerCommand.ReadFile, {path});
+                await NodeFileStream.pipe(fileStream, res);
+                this.log.info(ansicolor.magenta("File successfully piped to requestor"));
             } catch(e) {
+                this.log.error("ERROR");
                 this.log.error(e.message);
             }
             return next();

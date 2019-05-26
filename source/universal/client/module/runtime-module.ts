@@ -4,7 +4,6 @@ import { CompilerNotification} from '@universal/shared/server-client-notificatio
 import { ClientCommand } from '../command-types';
 import { AbstractClientModule } from './abstract/module';
 import { Log } from '@universal/shared/log';
-import { injectedClientConfiguration } from '../injected-client-configuration';
 import { TOOL_NAME } from '@universal/shared/tool-name';
 
 export class ClientRuntime extends AbstractClientModule<[typeof ClientCommand.HandleMessage], [typeof ClientCommand.RestartApplication]> {
@@ -18,14 +17,14 @@ export class ClientRuntime extends AbstractClientModule<[typeof ClientCommand.Ha
         super({
             [ClientCommand.HandleMessage]: message => this.handleMessage(message)
         }, "[SWP] ");
-        const { enableHotModuleReloading, enableApplicationRestarting } = injectedClientConfiguration;
+        const { enableHotModuleReloading, enableApplicationRestarting } = CLIENT_CONFIGURATION_OPTIONS;
         this.hotEnabled = enableHotModuleReloading;
         this.restartingEnabled = enableApplicationRestarting;
-        if (this.hotEnabled !== (module.hot !== undefined)) {
-            throw new Error(`hot swapping is ${this.hotEnabled ? 'enabled' : 'disabled'}, but webpack's module.hot is${module.hot === undefined ? ' not ' : ' '}defined.`);
+        if (this.hotEnabled !== (WEBPACK_HOT_MODULE !== undefined)) { // module.hot being defined should also mean that this.hotEnabled is true. Otherwise there was a logical error.
+            throw new Error(`hot swapping is ${this.hotEnabled ? 'enabled' : 'disabled'}, but webpack's ${nameof.full(module.hot)} is${WEBPACK_HOT_MODULE === undefined ? ' not ' : ' '}defined.`);
         }
-        if(module.hot) {
-            this.hotSwappingRuntime = new HotSwapRuntime(this, module.hot, this.log);
+        if(WEBPACK_HOT_MODULE) {
+            this.hotSwappingRuntime = new HotSwapRuntime(this, WEBPACK_HOT_MODULE, this.log);
         }
     }
 
@@ -47,17 +46,18 @@ export class ClientRuntime extends AbstractClientModule<[typeof ClientCommand.Ha
                 this.log.info('Source changed. Recompiling...');
                 break;
             case CompilerNotification.Type.Update:
-                const firstHash = !this.currentHash;
+                const priorHashWasAbsent = this.currentHash === undefined;
                 this.currentHash = message.data.hash;
                 if(message.data.errors.length > 0) {
                     this.log.error('Errors while compiling. App Hot-Swap/Restart prevented.');
-                    message.data.errors.forEach(error => {this.log.info(error)}); // should already have some ansi error coloring inside.
+                    message.data.errors.forEach(errorMessage => {this.log.info(errorMessage)}); // should already have some ansi error coloring inside.
                 } else {
                     if (message.data.warnings.length > 0) {
                         this.log.warn('Warnings while compiling.');
-                        message.data.warnings.forEach(strippedWarning => {this.log.info(strippedWarning)}); // should already have some ansi warning coloring inside.
+                        message.data.warnings.forEach(warningMessage => {this.log.info(warningMessage)}); // should already have some ansi warning coloring inside.
                     }
-                    if(!firstHash) this.hotSwapOrRestart();
+                    // TODO: Shouldn't this just logically run no matter what?
+                    if(!priorHashWasAbsent) this.hotSwapOrRestart(); // There was already a previous hash loaded, so we should invoke the hot swap workflow.
                 }
                 break;
             // I don't currently have the server sending this for any reason.
@@ -70,14 +70,12 @@ export class ClientRuntime extends AbstractClientModule<[typeof ClientCommand.Ha
     }
 
     private hotSwapOrRestart() {
+        this.log.info("App updated.");
         if(this.hotEnabled && this.hotSwappingRuntime) {
-            this.log.info('App updated. Hot Swapping...');
+            this.log.info('Hot Swapping...');
             this.hotSwappingRuntime.hotSwap(this.currentHash);
-        } else if(this.restartingEnabled) {
-            this.log.info('App updated. Restarting...');
-            this.startOrPromptAppRestart();
         } else {
-            this.log.info('App updated, but Hot Swapping and Restarting are disabled.');
+            this.startOrPromptAppRestart();
         }
     }
 
@@ -85,9 +83,9 @@ export class ClientRuntime extends AbstractClientModule<[typeof ClientCommand.Ha
 
 class HotSwapRuntime {
     private lastHash?: string;
-    private clientRuntime: ClientRuntime;
-    private hot: __WebpackModuleApi.Hot;
-    private log: Log.Logger;
+    private readonly clientRuntime: ClientRuntime;
+    private readonly hot: __WebpackModuleApi.Hot;
+    private readonly log: Log.Logger;
 
     public constructor(clientRuntime: ClientRuntime, hot: __WebpackModuleApi.Hot, log: Log.Logger) {
         this.clientRuntime = clientRuntime;
@@ -116,7 +114,8 @@ class HotSwapRuntime {
 
     private hashIsUpToDate() {
         if (this.lastHash === undefined) return false;
-        return this.lastHash.indexOf(__webpack_hash__) !== -1;
+        this.log.info(`${nameof.full(this.lastHash)} is '${this.lastHash}'. ${nameof(__webpack_hash__)} is '${WEBPACK_HASH}'`);
+        return this.lastHash.indexOf(WEBPACK_HASH) !== -1; // TODO: shouldn't this just be an exact equality comparisson?
     }
 
     private async check() {
@@ -139,13 +138,14 @@ class HotSwapRuntime {
             switch(hmrStatus) {
                 case "abort":
                 case "fail":
-                    this.log.warn("Cannot apply updated. Need to do a full Restart!");
-                    this.log.warn(err.stack || err.message);
-                    this.clientRuntime.startOrPromptAppRestart();
+                    this.log.warn(`Attempt to apply update has ${hmrStatus}ed. Need to do a full Restart!`);
                     break;
                 default:
-                    this.log.warn("Update failed: " + err.stack || err.message);
+                    this.log.warn("Internal logic of HMR check has failed. Need to do a full Restart!");
             }
+            if (err.message) this.log.error(err.message);
+            if (err.stack) this.log.error(err.stack);
+            await this.clientRuntime.startOrPromptAppRestart();
         }
     }
 

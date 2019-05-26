@@ -1,8 +1,6 @@
 {
     "description": "integration tests",
-    "dependencies": {
-        "scoville-webpack": "file:../../distribution/scoville-webpack.tgz"
-    },
+    "dependencies": {},
     "scripts": {
         "test": "ts-node --project ./multi-scoville-server/tsconfig.json ./multi-scoville-server/scoville-server.ts",
         "test:web": "",

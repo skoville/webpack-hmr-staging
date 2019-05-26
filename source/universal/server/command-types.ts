@@ -17,10 +17,10 @@ export namespace ServerCommand {
     // export const ClientUpdate = Symbol("");
     // export const ServerUpdate = Symbol("");
 
-    export const Log = Symbol("log message");
-    export const CompilerNotification = Symbol("compiler notification");
-    export const GetLastCompilerUpdateNotification = Symbol("get last compiler update notification");
-    export const ReadFile = Symbol("read file")
+    export const Log = "LOG" //Symbol("log message");
+    export const CompilerNotification = "COMPILER_NOTIFICATION" // Symbol("compiler notification");
+    export const GetLastCompilerUpdateNotification = "GET_LAST_COMPILER_NOTIFICATION" // Symbol("get last compiler update notification");
+    export const ReadFile =  "READ_FILE" // Symbol("read file");
 
     export interface Types {
         [Log]: [Log.Request, void];

@@ -55,23 +55,43 @@ class Externalize {
     }
 }
 
-function generateWebpackConfiguration(target: Target, entry: string, externals: ExternalsHandler, extensions: string[] = ['.ts']): webpack.Configuration {
+function generateWebpackConfiguration(target: Target, entry: string, externals: ExternalsHandler, side?: Side): webpack.Configuration {
     const {name: outFile, dir: outDistSubDirectory} = path.parse(entry.substring(PUBLIC_API_DIRECTORY.length));
     const tsconfigPath = path.resolve(SOURCE_DIRECTORY, target, "tsconfig.json");
+    const plugins = side === Side.client ?
+        [
+            new webpack.DefinePlugin({
+                // Passthrough of constants, they will be transformed during the child bundle
+                CLIENT_CONFIGURATION_OPTIONS: "CLIENT_CONFIGURATION_OPTIONS",
+                COMPILER_ID: "COMPILER_ID",
+                // Passthrough of module apis. These should refer to the module and hash of the child bundle, not the library bundle.
+                // In the future, it would be great for a more clear API to allow hot module reloading of libraries into dependant code,
+                // imagine your code updating live when the mods push to github.
+                WEBPACK_HASH: "WEBPACK_HASH",
+                WEBPACK_HOT_MODULE: "WEBPACK_HOT_MODULE"
+            })
+        ] : [];
     return {
+        devtool: "source-map",
         entry,
-        externals, // https://github.com/webpack/webpack/blob/master/lib/ExternalModuleFactoryPlugin.js#L77
+        externals,
         mode: 'production',
         module: {
             rules: [
                 {
                     test: /\.ts$/,
-                    use: {
-                        loader: 'ts-loader',
-                        options: {
-                            configFile: tsconfigPath
+                    use: [
+                        {
+                            loader: 'ts-nameof-loader'
+                        },
+                        {
+                            loader: 'ts-loader',
+                            options: {
+                                configFile: tsconfigPath,
+                                // getCustomTransformers: () => ({ before: [tsnameof] })
+                            }
                         }
-                    }
+                    ]
                 }
             ]
         },
@@ -80,8 +100,9 @@ function generateWebpackConfiguration(target: Target, entry: string, externals: 
             path: path.resolve(DISTRIBUTION_DIRECTORY, "." + outDistSubDirectory),
             libraryTarget: "commonjs"
         },
+        plugins,
         resolve: {
-            extensions,
+            extensions: side === Side.client ? ['.ts', '.js'] : ['.ts'],
             alias: {
                 "@universal": UNIVERSAL_SOURCE_DIRECTORY,
                 ["@" + target]: path.resolve(SOURCE_DIRECTORY, target)
@@ -106,7 +127,7 @@ async function createWebpackConfigs() {
         target,
         path.resolve(PUBLIC_API_DIRECTORY, configuration, target + "-" + side + ".ts"),
         externals,
-        side === Side.client ? ['.ts', '.js'] : ['.ts']
+        side
     ));
     configs.push(generateWebpackConfiguration(
         Target.node,

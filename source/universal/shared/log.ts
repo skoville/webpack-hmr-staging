@@ -1,4 +1,4 @@
-import ansicolor from 'ansicolor';
+import * as ansicolor from 'ansicolor';
 
 export namespace Log {
     // levels and their ranks are based off of Log4j
@@ -33,9 +33,25 @@ export namespace Log {
 
         private handle(level: Level, message: string) {
             if (level >= this.level) {
-                const contents = this.prefix + message;
+                const contents = this.prefix + this.prefixLinesOfMultilineMessage(message);
                 this.requestHandler({level, contents});
             }
+        }
+
+        private prefixLinesOfMultilineMessage(message: string) {
+            const barePrefix = ansicolor.strip(this.prefix);
+            if (barePrefix.length > 0) {
+                const messageLines = message.split("\n");
+                if (messageLines.length > 1) {
+                    const newLinePrefix = [];
+                    for (var i = 0; i < barePrefix.length; ++i) {
+                        newLinePrefix.push(i === barePrefix.length / 2 ? "." : " ");
+                    }
+                    return message.split("\n").join("\n" + ansicolor.white(newLinePrefix.join("")));
+                }
+            }
+            // In this case either the prefix is 0 length or there is only one message line, so just return the message.
+            return message;
         }
 
         public clone(newPrefix?: string, level?: number) {

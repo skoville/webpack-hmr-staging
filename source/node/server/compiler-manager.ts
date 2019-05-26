@@ -8,6 +8,7 @@ import { AbstractFileStream } from '@universal/server/abstract-file-stream';
 import { NodeFileStream } from '@node/shared/file-stream';
 import { Log } from '@universal/shared/log';
 import { PubSub, Subscriber } from '@universal/shared/pubsub';
+import * as ansicolor from 'ansicolor';
 
 type FileSystem = typeof fs | MemoryFileSystem;
 
@@ -15,7 +16,7 @@ export class CompilerManager {
     private readonly compiler: webpack.Compiler;
     private readonly notifier: PubSub<CompilerNotification.Body>;
     private readonly fs: FileSystem;
-    private readonly log: Log.Logger;
+    private log: Log.Logger;
     private readonly publicPath: string;
 
     private valid: boolean;
@@ -29,7 +30,7 @@ export class CompilerManager {
         } else {
             this.fs = fs;
         }
-        this.log = log;
+        this.log = log.clone("[compiling] ");
         this.compiler = compiler;
         this.notifier = new PubSub();
         this.valid = false;
@@ -52,6 +53,7 @@ export class CompilerManager {
     }
 
     public async getReadStream(requestPath: string): Promise<AbstractFileStream|false> {
+        this.log.trace("getReadStream called with path = " + requestPath);
         const fsPath = this.getFsPathFromRequestPath(requestPath);
         if(!fsPath) return false;
         // Don't stream the file until compilation is done.
@@ -62,7 +64,7 @@ export class CompilerManager {
                         this.fs.stat(fsPath, (_err, stats) => {
                             if(stats.isFile()) {
                                 this.log.info("File located. Returning ReadStream.");
-                                resolve(new NodeFileStream(this.fs.createReadStream(fsPath) as fs.ReadStream));
+                                resolve(new NodeFileStream(this.fs.createReadStream(fsPath)));
                             } else {
                                 this.log.error("Path exists, but is not a file.");
                                 resolve(false);
@@ -83,10 +85,12 @@ export class CompilerManager {
         if(requestPath.indexOf(this.publicPath) !== -1) {
             const outputPath = (this.compiler as any).outputPath;
             const adjustedPath = path.resolve(outputPath + '/' + (requestPath.substring(this.publicPath.length)));
-            this.log.info("(publicPath: '" + this.publicPath + "', requestPath:'" + requestPath + "', compiler.outputPath:'" + outputPath + "') => '" + adjustedPath + "'");
+            const {compiler} = this;
+            this.log.info(`${nameof(this.publicPath)}: '${this.publicPath}', ${nameof(requestPath)}: '${requestPath}', ${nameof.full(compiler.outputPath)}: '${outputPath}'`);
+            this.log.debug(adjustedPath);
             return adjustedPath;
         } else {
-            this.log.error("Request path '" + requestPath + "' will not be served because it is not under webpack.config.output.publicPath of '" + this.publicPath + "'");
+            this.log.error(`Request path '${requestPath}' will not be served because it is not under webpack.config.output.publicPath of '${this.publicPath}'`);
             return false;
         }
     }
@@ -97,6 +101,10 @@ export class CompilerManager {
         this.compiler.hooks.run.tap(TOOL_NAME, () => {console.log("inner run hook");this.invalidate()});
         this.compiler.hooks.watchRun.tap(TOOL_NAME, () => {console.log("inner watchRun hook");this.invalidate()});
         this.compiler.hooks.done.tap(TOOL_NAME, stats => {
+            if(stats.hash !== undefined) {
+                this.log = this.log.clone(`[${ansicolor.lightGreen(stats.hash)}] `);
+            }
+
             const {compilation} = stats;
             if(compilation.errors.length === 0 && Object.values(compilation.assets).every(asset => !(asset as any).emitted)) {
                 this.sendCompilerNotification({type:CompilerNotification.Type.NoChange});
@@ -104,13 +112,7 @@ export class CompilerManager {
                 this.sendUpdateMessage(stats);
             }
             this.valid = true;
-            // Consider doing the following after the nextTick, which is done in Webpack-Dev-Middleware
-            const toStringOptions = this.compiler.options.stats;
-            if (toStringOptions) {
-                if (stats.hasErrors()) this.log.error(stats.toString(toStringOptions));
-                else if (stats.hasWarnings()) this.log.warn(stats.toString(toStringOptions));
-                else this.log.info(stats.toString(toStringOptions));
-            }
+
             let message = 'Compiled successfully.';
             if (stats.hasErrors()) {
                 message = 'Failed to compile.';
@@ -118,10 +120,15 @@ export class CompilerManager {
                 message = 'Compiled with warnings.';
             }
             this.log.info(message);
+
+            // Consider doing the following after the nextTick, which is done in Webpack-Dev-Middleware
+            const toStringOptions = this.compiler.options.stats || "verbose";
+            if (stats.hasErrors()) this.log.error(stats.toString(toStringOptions));
+            else if (stats.hasWarnings()) this.log.warn(stats.toString(toStringOptions));
+            else this.log.info(stats.toString(toStringOptions));
+            
             if(this.compilationCallbacks.length) {
-                for(const callback of this.compilationCallbacks) {
-                    callback();
-                }
+                this.compilationCallbacks.forEach(callback => callback());
                 this.compilationCallbacks = [];
             }
         });

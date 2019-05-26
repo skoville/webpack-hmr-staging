@@ -10,6 +10,10 @@ export class NodeFileStream extends AbstractFileStream {
         readStream.on('end', () => {
             this.finish();
         });
+        readStream.on('error', (err) =>{
+            console.log("read stream error");
+            console.log(err);
+        });
     }
 
     public static async pipe(fileStream: AbstractFileStream, destination: NodeJS.WritableStream) {

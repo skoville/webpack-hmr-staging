@@ -21,7 +21,7 @@ export class NodeCompilerManagerRegistryModule extends AbstractCompilerManagerMo
         if (this.registeredCompilers.has(compiler)) {
             throw new Error(`Detected attempt to register same compiler multiple times.`);
         }
-        const compilerManager = new CompilerManager(compiler, this.memoryFS, this.log.clone(`[${compilerId.substring(0, 6)}] `));
+        const compilerManager = new CompilerManager(compiler, this.memoryFS, this.log);
         this.registeredCompilers.add(compiler);
         this.registry.set(compilerId, compilerManager);
         compilerManager.subscribeToCompilerNotifications(async notification => {
@@ -42,7 +42,7 @@ export class NodeCompilerManagerRegistryModule extends AbstractCompilerManagerMo
             .filter((possibleStream):possibleStream is AbstractFileStream => possibleStream !== false);
         if (readStreams.length === 0) {
             throw new Error(`There are no compilers which contain the file at path '${request.path}'.`);
-        } else if (readStreams.length > 0) {
+        } else if (readStreams.length > 1) {
             // More than one compiler has a file which matches this request's path, so we don't know which one to choose.
             // In the future once we are able to send the compilerId as part of the GET request header, then it won't matter
             // if two compilers have the same file, because all ReadFileRequests will be scoped to a specific compilerManager.

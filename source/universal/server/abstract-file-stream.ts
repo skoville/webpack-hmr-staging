@@ -15,11 +15,11 @@ export abstract class AbstractFileStream {
     }
 
     public async getNextChunk() {
-        if (this.finished) {
-            return undefined;
-        }
         if (this.queuedChunks.size > 0) {
             return this.dequeue(this.queuedChunks).chunk;
+        }
+        if (this.finished) {
+            return undefined;
         }
         const chunkResolver = new SelfResolvingConstruct<string|undefined>();
         this.queuedChunkRequests.add(chunkResolver);
